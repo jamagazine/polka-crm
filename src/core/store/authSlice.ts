@@ -8,6 +8,7 @@ export interface AuthSlice {
     userEmail: string;
 
     loginFlow: (email: string, password: string) => Promise<boolean>;
+    loginDemo: () => void;
     logout: () => void;
 }
 
@@ -21,6 +22,22 @@ export const createAuthSlice = (
 
     loginFlow: async (email, password) => {
         const toastId = toast.loading('Авторизация...');
+
+        // 1. Потайной ход для GitHub Pages
+        const isGithub = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
+        if (isGithub) {
+            set(() => ({ isAuthenticated: true, userEmail: email || 'github-user@polka.crm' }));
+            toast.success('Вход выполнен (GitHub Bypass)', { id: toastId });
+            return true;
+        }
+
+        // 2. Потайной ход admin/admin
+        if (email === 'admin' && password === 'admin') {
+            set(() => ({ isAuthenticated: true, userEmail: 'admin@polka.crm' }));
+            toast.success('Вход выполнен (Admin Bypass)', { id: toastId });
+            return true;
+        }
+
         try {
             const res = await login(email, password);
             if (res.ok) {
@@ -34,6 +51,10 @@ export const createAuthSlice = (
             toast.error('Ошибка сети при авторизации', { id: toastId });
             return false;
         }
+    },
+    loginDemo: () => {
+        set(() => ({ isAuthenticated: true, userEmail: 'demo@polka.crm' }));
+        toast.success('Демо-вход выполнен');
     },
 
     logout: () => {

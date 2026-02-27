@@ -1,8 +1,10 @@
 /* ─── API-клиент для CloudShop ─── */
 
 import { log, logError } from '../utils/logger';
+import { toast } from 'sonner';
 
-const BASE = '/api-cs';
+const IS_GITHUB_PAGES = typeof window !== 'undefined' && window.location.hostname.endsWith('.github.io');
+const BASE = IS_GITHUB_PAGES ? 'https://web.cloudshop.ru' : '/api-cs';
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,7 @@ export async function login(email: string, password: string): Promise<Response> 
         return res;
     } catch (err) {
         logError('[AUTH API] Ошибка сети:', err);
+        toast.error('Сервер авторизации недоступен. Проверьте подключение или используйте Демо-вход.');
         throw err;
     }
 }
@@ -88,6 +91,7 @@ export async function fetchMasters(): Promise<Master[]> {
         return list;
     } catch (err) {
         logError('[MASTERS API] Ошибка сети:', err);
+        toast.error('Не удалось загрузить список мастеров. Возможно, прокси-сервер недоступен.');
         return [];
     }
 }
@@ -179,6 +183,7 @@ export async function fetchAllCatalog(onProgress?: (offset: number) => void): Pr
         log(`[CATALOG API] Успешно загружен весь каталог (${uniqueMap.size} уникальных элементов).`);
     } catch (err) {
         logError('[CATALOG API] Ошибка сети при полной загрузке:', err);
+        toast.error('Ошибка при загрузке каталога. Данные могут быть неполными.');
     }
 
     return Array.from(uniqueMap.values());

@@ -93,6 +93,25 @@ export function LoginPage() {
                 >
                     {loading ? 'Вход...' : 'Войти'}
                 </button>
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" style={{ borderColor: 'var(--polka-border)' }} />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Или</span>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => usePanelStore.getState().loginDemo()}
+                    className="w-full h-10 rounded-md border text-foreground font-medium
+                               hover:bg-muted/50 transition-colors"
+                    style={{ borderColor: 'var(--polka-border)' }}
+                >
+                    Демо-вход (без синхронизации)
+                </button>
             </form>
         </div>
     );
