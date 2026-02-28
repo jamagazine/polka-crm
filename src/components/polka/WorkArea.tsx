@@ -90,23 +90,6 @@ export function WorkArea() {
     return `Обновлено ${d.toLocaleDateString('ru-RU')} в ${timeStr}`;
   }, [syncTime]);
 
-  // ── Временная плашка успешного обновления ──
-  const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const prevIsBusy = useRef(isParsing || isLoading);
-
-  useEffect(() => {
-    const isBusyNow = isParsing || isLoading;
-    if (prevIsBusy.current && !isBusyNow && syncTime) {
-      // Только что завершилась загрузка
-      setShowSuccessToast(true);
-      const timer = setTimeout(() => {
-        setShowSuccessToast(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-    prevIsBusy.current = isBusyNow;
-  }, [isParsing, isLoading, syncTime]);
-
   const [isSearchActive, setIsSearchActive] = useState(false);
 
   const [showSiblings, setShowSiblings] = useState(false);
@@ -407,84 +390,59 @@ export function WorkArea() {
                         />
                       </div>
                     </TooltipTrigger>
-                    {lastSyncText && !showSuccessToast && (
+                    {lastSyncText && (
                       <TooltipContent side="top" className="text-xs">
                         <p>{lastSyncText}</p>
                       </TooltipContent>
                     )}
                   </Tooltip>
 
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    {showSuccessToast ? (
-                      <motion.div
-                        key="toast"
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex items-center min-w-0"
-                      >
-                        <span className="text-gray-500 font-medium ml-1 mr-1 text-xs whitespace-nowrap">
-                          {lastSyncText}
-                        </span>
-                        <span className="text-gray-300 select-none mr-2">·</span>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="counters"
-                        initial={{ opacity: 0, x: 10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.3 }}
-                        className="flex items-center gap-1.5"
-                      >
-                        {/* Строки (или Выделение) */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className={cn(
-                              "flex items-center gap-0.5 cursor-default transition-colors",
-                              selectedIds && selectedIds.size > 0
-                                ? "text-blue-600 dark:text-blue-500 font-medium"
-                                : "text-gray-600 hover:text-gray-900"
-                            )}>
-                              <Rows2 className="w-3 h-3 flex-shrink-0" />
-                              <span className={cn("tabular-nums whitespace-nowrap", !(selectedIds && selectedIds.size > 0) && "font-medium")}>
-                                {selectedIds && selectedIds.size > 0 ? (
-                                  `Выбрано: ${selectedIds.size} из ${totalRows}`
-                                ) : (
-                                  totalRows >= 1000
-                                    ? `${(totalRows / 1000).toFixed(1)}к`
-                                    : String(totalRows || '—')
-                                )}
-                              </span>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
+                  <div className="flex items-center gap-1.5">
+                    {/* Строки (или Выделение) */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className={cn(
+                          "flex items-center gap-0.5 cursor-default transition-colors",
+                          selectedIds && selectedIds.size > 0
+                            ? "text-blue-600 dark:text-blue-500 font-medium"
+                            : "text-gray-600 hover:text-gray-900"
+                        )}>
+                          <Rows2 className="w-3 h-3 flex-shrink-0" />
+                          <span className={cn("tabular-nums whitespace-nowrap", !(selectedIds && selectedIds.size > 0) && "font-medium")}>
                             {selectedIds && selectedIds.size > 0 ? (
-                              <p>Выбрано строк: {selectedIds.size} из {totalRows.toLocaleString('ru-RU')}</p>
+                              `Выбрано: ${selectedIds.size} из ${totalRows}`
                             ) : (
-                              <p>{totalRows.toLocaleString('ru-RU')} записей всего</p>
+                              totalRows >= 1000
+                                ? `${(totalRows / 1000).toFixed(1)}к`
+                                : String(totalRows || '—')
                             )}
-                          </TooltipContent>
-                        </Tooltip>
+                          </span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {selectedIds && selectedIds.size > 0 ? (
+                          <p>Выбрано строк: {selectedIds.size} из {totalRows.toLocaleString('ru-RU')}</p>
+                        ) : (
+                          <p>{totalRows.toLocaleString('ru-RU')} записей всего</p>
+                        )}
+                      </TooltipContent>
+                    </Tooltip>
 
-                        <span className="text-gray-300 select-none">·</span>
+                    <span className="text-gray-300 select-none">·</span>
 
-                        {/* Страницы */}
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="flex items-center gap-0.5 text-gray-600 cursor-default hover:text-gray-900 transition-colors">
-                              <BookOpen className="w-3 h-3 flex-shrink-0" />
-                              <span className="font-medium tabular-nums">{totalPages}</span>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
-                            <p>{totalPages} страниц всего</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                    {/* Страницы */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-0.5 text-gray-600 cursor-default hover:text-gray-900 transition-colors">
+                          <BookOpen className="w-3 h-3 flex-shrink-0" />
+                          <span className="font-medium tabular-nums">{totalPages}</span>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        <p>{totalPages} страниц всего</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
 
                 </TooltipProvider>
               </div>

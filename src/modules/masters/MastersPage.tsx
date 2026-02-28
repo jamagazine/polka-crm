@@ -252,24 +252,32 @@ export function MastersPage() {
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             freezeEnd: true,
+            isDragDisabled: true,
             tooltip: 'Порядковый номер'
         },
         {
             id: 'type', label: <User className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            width: 'w-[60px]', minWidth: 'min-w-[60px]',
+            responsiveSticky: true, stickyLeft: 'md:left-[50px]',
+            width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            isDragDisabled: true,
             tooltip: 'Тип строки (Системный/Активный/Архив или Папка/Товар)'
         },
         {
             id: 'status', label: <Clock className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            width: 'w-[40px]', minWidth: 'min-w-[40px]',
+            responsiveSticky: true, stickyLeft: 'md:left-[100px]',
+            width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            isDragDisabled: true,
             tooltip: 'Состояние (Стаж или Диагностика ошибок)'
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
+            responsiveSticky: true, stickyLeft: 'md:left-[150px]',
             width: showRawNames ? 'w-[500px]' : (!showRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showRawNames ? 'min-w-[500px]' : (!showRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
+            freezeEnd: true,
+            isDragDisabled: true,
             tooltip: 'Наименование позиции'
         },
         { id: 'category', label: 'Категория', sortable: true, searchable: true, width: 'w-[190px]', minWidth: 'min-w-[190px]', tooltip: 'Категория мастера' },
@@ -309,17 +317,8 @@ export function MastersPage() {
             result = ordered;
         }
 
-        // Динамически пересчитываем stickyLeft для видимых sticky-колонок
-        const stickyWidths: Record<string, number> = { index: 50 };
-        let cumulativeLeft = 0;
-        return result.map(col => {
-            if (col.sticky && stickyWidths[col.id] !== undefined) {
-                const updated = { ...col, stickyLeft: `left-[${cumulativeLeft}px]` };
-                cumulativeLeft += stickyWidths[col.id];
-                return updated;
-            }
-            return col;
-        });
+        // Возвращаем результат без изменений, так как стили теперь прописаны жестко в ColDef
+        return result;
     }, [baseColumns, mastersColumnOrder, hiddenColumns]);
 
     const [sort, setSort] = useState<{ col: ColId; dir: SortDir } | null>({ col: 'name', dir: 'asc' });
@@ -426,7 +425,7 @@ export function MastersPage() {
         // Ensure index doesn't go below the last sticky column
         let firstNonStickyIndex = 0;
         for (let i = 0; i < COLUMNS.length; i++) {
-            if (COLUMNS[i].sticky) firstNonStickyIndex = i + 1;
+            if (COLUMNS[i].isDragDisabled) firstNonStickyIndex = i + 1;
         }
         toIndex = Math.max(toIndex, firstNonStickyIndex);
 
@@ -696,7 +695,7 @@ export function MastersPage() {
                     <TableHeader>
                         <TableRow className="bg-muted/30 hover:bg-muted/30 h-[50px]">
                             {COLUMNS.map(col => {
-                                const isSticky = col.sticky === true;
+                                const isDraggable = !col.isDragDisabled;
                                 const isDragging = draggedColId === col.id;
                                 const isDragOver = dragOverColId === col.id;
 
@@ -706,12 +705,12 @@ export function MastersPage() {
                                         col={col}
                                         className={cn('px-2 transition-opacity', isDragging ? 'opacity-30' : '')}
                                         // @ts-ignore
-                                        draggable={!isSticky}
-                                        onDragStart={(e: React.DragEvent) => !isSticky && handleDragStart(e, col.id)}
-                                        onDragOver={(e: React.DragEvent) => !isSticky && handleDragOver(e, col)}
-                                        onDragLeave={!isSticky ? handleDragLeave : undefined}
-                                        onDrop={(e: React.DragEvent) => !isSticky && handleDrop(e, col)}
-                                        onDragEnd={!isSticky ? handleDragEnd : undefined}
+                                        draggable={isDraggable}
+                                        onDragStart={(e: React.DragEvent) => isDraggable && handleDragStart(e, col.id)}
+                                        onDragOver={(e: React.DragEvent) => isDraggable && handleDragOver(e, col)}
+                                        onDragLeave={isDraggable ? handleDragLeave : undefined}
+                                        onDrop={(e: React.DragEvent) => isDraggable && handleDrop(e, col)}
+                                        onDragEnd={isDraggable ? handleDragEnd : undefined}
                                         isDropTarget={isDragOver}
                                         dropPosition={dropPosition as 'left' | 'right' | null}
                                     >
@@ -747,7 +746,7 @@ export function MastersPage() {
                                                 colAlign={col.align}
                                                 isSortable={col.sortable}
                                                 isSearchable={col.searchable}
-                                                isDragDisabled={isSticky}
+                                                isDragDisabled={!!col.isDragDisabled}
                                                 isSortActive={sort?.col === col.id}
                                                 sortDir={sort?.col === col.id ? sort.dir : null}
                                                 onSortToggle={() => toggleSort(col.id)}

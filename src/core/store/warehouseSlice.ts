@@ -1,5 +1,4 @@
-import { type RawCatalogItem } from '../../api/client';
-import { parseCatalogItem, type WarehouseItem } from '../../utils/parseCatalog';
+import { type WarehouseItem } from '../../utils/parseCatalog';
 import { catalogService } from '../../services/dataService';
 
 export interface WarehouseSlice {
@@ -61,12 +60,10 @@ export const createWarehouseSlice = (
 
         globalSet(() => ({ isCatalogLoading: true, isParsing: true, parseProgress: 'Инициализация...' }));
         try {
-            const rawCatalog: RawCatalogItem[] = await catalogService.syncCatalog((offset) => {
+            // syncCatalog уже возвращает спарсенные WarehouseItem — НЕ парсим повторно!
+            const parsedItems: WarehouseItem[] = await catalogService.syncCatalog((offset) => {
                 globalSet(() => ({ parseProgress: `Загрузка: ${offset}...` }));
-            });
-            // 1. Парсим
-            const parsedItems = rawCatalog.map(parseCatalogItem);
-
+            }) as WarehouseItem[];
             // 2. Считаем вложенность и обогащаем
             const folderChildren = new Map<string, WarehouseItem[]>();
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { RefreshCw, Package, ArrowLeft, Folder, ExternalLink, Activity, ChevronRight, FolderTree, CheckSquare, MinusSquare, Square, TriangleAlert, Check } from 'lucide-react';
+import { RefreshCw, Package, ArrowLeft, Folder, FolderCog, ExternalLink, Activity, ChevronRight, FolderTree, CheckSquare, MinusSquare, Square, TriangleAlert, Check } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -99,24 +99,32 @@ export function WarehousePage() {
             sticky: true, stickyLeft: 'left-0',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             freezeEnd: true,
+            isDragDisabled: true,
             tooltip: 'Порядковый номер'
         },
         {
             id: 'type', label: <Folder className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            width: 'w-[60px]', minWidth: 'min-w-[60px]',
+            responsiveSticky: true, stickyLeft: 'md:left-[50px]',
+            width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            isDragDisabled: true,
             tooltip: 'Тип строки (Системный/Активный/Архив или Папка/Товар)'
         },
         {
             id: 'status', label: <Activity className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            width: 'w-[40px]', minWidth: 'min-w-[40px]',
+            responsiveSticky: true, stickyLeft: 'md:left-[100px]',
+            width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            isDragDisabled: true,
             tooltip: 'Состояние (Стаж или Диагностика ошибок)'
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
+            responsiveSticky: true, stickyLeft: 'md:left-[150px]',
             width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
+            freezeEnd: true,
+            isDragDisabled: true,
             tooltip: 'Наименование позиции'
         },
         { id: 'category', label: 'Категория', sortable: true, searchable: true, width: 'w-[200px]', minWidth: 'min-w-[200px]' },
@@ -134,24 +142,32 @@ export function WarehousePage() {
             sticky: true, stickyLeft: 'left-0',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             freezeEnd: true,
+            isDragDisabled: true,
             tooltip: 'Порядковый номер'
         },
         {
             id: 'type', label: <Package className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            width: 'w-[60px]', minWidth: 'min-w-[60px]',
+            responsiveSticky: true, stickyLeft: 'md:left-[50px]',
+            width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            isDragDisabled: true,
             tooltip: 'Фото товара'
         },
         {
             id: 'status', label: <span title="Движение" className="flex items-center justify-center w-full h-full"><Activity className="w-4 h-4 text-muted-foreground" /></span>, sortable: true, searchable: false,
-            width: 'w-[40px]', minWidth: 'min-w-[40px]',
+            responsiveSticky: true, stickyLeft: 'md:left-[100px]',
+            width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            isDragDisabled: true,
             tooltip: 'Движение или ошибки'
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
+            responsiveSticky: true, stickyLeft: 'md:left-[150px]',
             width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
+            freezeEnd: true,
+            isDragDisabled: true,
             tooltip: 'Наименование позиции'
         },
         { id: 'code', label: 'Код', sortable: true, searchable: true, width: 'w-[130px]', minWidth: 'min-w-[130px]', align: 'center', tooltip: 'Внутренний код CloudShop' },
@@ -198,17 +214,8 @@ export function WarehousePage() {
             result = ordered;
         }
 
-        // Динамически пересчитываем stickyLeft для видимых sticky-колонок
-        const stickyWidths: Record<string, number> = { index: 50 };
-        let cumulativeLeft = 0;
-        return result.map(col => {
-            if (col.sticky && stickyWidths[col.id] !== undefined) {
-                const updated = { ...col, stickyLeft: `left-[${cumulativeLeft}px]` };
-                cumulativeLeft += stickyWidths[col.id];
-                return updated;
-            }
-            return col;
-        });
+        // Возвращаем результат без изменений, так как стили теперь прописаны жестко в ColDef
+        return result;
     }, [baseColumns, warehouseColumnOrder, hiddenColumns]);
 
     const [sort, setSort] = useState<{ col: ColId; dir: SortDir } | null>({ col: 'name', dir: 'asc' });
@@ -297,7 +304,7 @@ export function WarehousePage() {
 
         for (const item of catalog) {
             if (item.isFolder) {
-                const isRoot = !item.parentId || String(item.parentId).trim() === '' || String(item.parentId).trim() === '0';
+                const isRoot = item.parentId === "";
                 if (isRoot) rootCount++;
                 else subCount++;
             } else {
@@ -390,9 +397,7 @@ export function WarehousePage() {
             const parentIdOfCurrent = currentFolder?.parentId || null;
 
             const siblings = catalog.filter(i => {
-                const iParentId = (!i.parentId || String(i.parentId).trim() === '' || String(i.parentId).trim() === '0') ? null : i.parentId;
-                const targetParentId = (!parentIdOfCurrent || String(parentIdOfCurrent).trim() === '' || String(parentIdOfCurrent).trim() === '0') ? null : parentIdOfCurrent;
-                return i.isFolder && iParentId === targetParentId;
+                return i.isFolder && i.parentId === parentIdOfCurrent;
             });
 
             // Сортируем соседей по алфавиту
@@ -459,18 +464,19 @@ export function WarehousePage() {
 
     // ── Фильтрация данных согласно режиму, папке и поиску ──
     const filteredData = useMemo(() => {
-        return catalog.filter(item => {
+        let rootPassCount = 0;
+        const result = catalog.filter(item => {
             let visible = false;
 
             if (viewMode === 'flat') {
                 visible = !item.isFolder;
             } else {
                 if (currentFolderId === null) {
-                    // Показывать папки и товары в корне списка (isRoot)
-                    const isRoot = !item.parentId || String(item.parentId).trim() === '' || String(item.parentId).trim() === '0';
+                    const isRoot = item.parentId === "";
+                    if (isRoot) rootPassCount++;
                     visible = isRoot;
                 } else {
-                    visible = item.parentId === currentFolderId;
+                    visible = String(item.parentId) === String(currentFolderId);
                 }
             }
 
@@ -551,6 +557,12 @@ export function WarehousePage() {
 
             return true;
         });
+
+        if (currentFolderId === null && viewMode === 'tree') {
+            console.log(`[WarehousePage] Фильтр корня: прошло ${rootPassCount} эл. из ${catalog.length}`);
+        }
+
+        return result;
     }, [catalog, viewMode, currentFolderId, activeSearchCol, debouncedSearchTerm, statusFilter, showOnlySelected, selectedIds]);
 
     // ── Ренейм особых папок "на лету" ──
@@ -569,43 +581,59 @@ export function WarehousePage() {
     const sortedData = useMemo(() => {
         const data = [...filteredData];
         if (!sort) {
-            // Дефолтная: папки наверх, затем по имени (с учетом особых папок внизу)
+            // Дефолтная: папки наверх, затем по имени
             return data.sort((a, b) => {
+                // 1. АБСОЛЮТНОЕ ПРАВИЛО: Папки ВСЕГДА сверху
                 if (a.isFolder && !b.isFolder) return -1;
                 if (!a.isFolder && b.isFolder) return 1;
 
-                // Логика особых папок в корне
-                if (currentFolderId === null && a.isFolder && b.isFolder) {
-                    const aSpecial = a.name.startsWith('Яя `(');
-                    const bSpecial = b.name.startsWith('Яя `(');
-                    if (aSpecial && !bSpecial) return 1;
-                    if (!aSpecial && bSpecial) return -1;
+                // 2. Системные папки (Яя) ВСЕГДА внизу среди папок
+                if (a.isFolder && b.isFolder) {
+                    const aSystem = a.isSystem;
+                    const bSystem = b.isSystem;
+                    if (aSystem && !bSystem) return 1;
+                    if (!aSystem && bSystem) return -1;
                 }
 
+                // 3. Обычная сортировка по имени
                 return getDisplayName(a).localeCompare(getDisplayName(b), 'ru');
             });
         }
 
         return data.sort((a, b) => {
-            // Строго папки наверх во всех вариантах сортировки
+            // 1. АБСОЛЮТНОЕ ПРАВИЛО: Папки ВСЕГДА сверху
             if (a.isFolder && !b.isFolder) return -1;
             if (!a.isFolder && b.isFolder) return 1;
 
-            if (sort.col !== 'type') {
-                // Логика особых папок (всегда в самом низу, но только если сравниваются две папки в корне)
-                if (currentFolderId === null && a.isFolder && b.isFolder) {
-                    const aSpecial = a.name.startsWith('Яя `(');
-                    const bSpecial = b.name.startsWith('Яя `(');
-                    if (aSpecial && !bSpecial) return 1;
-                    if (!aSpecial && bSpecial) return -1;
-                }
+            // 2. Системные папки (Яя) ВСЕГДА внизу среди папок (кроме сортировки по типу)
+            if (sort.col !== 'type' && a.isFolder && b.isFolder) {
+                const aSystem = a.isSystem;
+                const bSystem = b.isSystem;
+                if (aSystem && !bSystem) return 1;
+                if (!aSystem && bSystem) return -1;
             }
 
+            // 3. Если оба элемента одного типа, применяем сортировку пользователя
             const isEmpty = (val: any) => val === null || val === undefined || val === '' || val === '—';
             let av: any, bv: any;
 
             switch (sort.col) {
-                case 'type': av = a.isFolder ? (a.hasSubfolders ? 1 : 2) : 3; bv = b.isFolder ? (b.hasSubfolders ? 1 : 2) : 3; break;
+                case 'type': {
+                    // 1 = папки с вложенными (не системные), 2 = обычные папки, 3 = системные
+                    // 4 = товары С ФОТО, 5 = товары БЕЗ ФОТО
+                    const getTypePriority = (i: typeof a) => {
+                        if (i.isFolder) {
+                            if (i.isSystem) return 3;
+                            if (i.hasSubfolders) return 1;
+                            return 2;
+                        }
+                        // Для товаров: проверяем наличие фото
+                        return (i.pic && i.pic.length > 0) ? 4 : 5;
+                    };
+                    av = getTypePriority(a);
+                    bv = getTypePriority(b);
+                    break;
+                }
                 case 'name': av = getDisplayName(a); bv = getDisplayName(b); break;
                 case 'category': av = a.category; bv = b.category; break;
                 case 'skuCount': av = a.isFolder ? a.skuCount : 0; bv = b.isFolder ? b.skuCount : 0; break;
@@ -868,11 +896,11 @@ export function WarehousePage() {
             toIndex += 1;
         }
 
-        let firstNonStickyIndex = 0;
+        let firstReorderableIndex = 0;
         for (let i = 0; i < activeColumns.length; i++) {
-            if (activeColumns[i].sticky) firstNonStickyIndex = i + 1;
+            if (activeColumns[i].isDragDisabled) firstReorderableIndex = i + 1;
         }
-        toIndex = Math.max(toIndex, firstNonStickyIndex);
+        toIndex = Math.max(toIndex, firstReorderableIndex);
 
         const newOrder = [...currentIds];
         const [movedId] = newOrder.splice(fromIndex, 1);
@@ -925,7 +953,7 @@ export function WarehousePage() {
                     <TableHeader>
                         <TableRow className="bg-muted/30 hover:bg-muted/30 h-[50px]">
                             {activeColumns.map(col => {
-                                const isSticky = col.sticky === true;
+                                const isDraggable = !col.isDragDisabled;
                                 const isDragging = draggedColId === col.id;
                                 const isDragOver = dragOverColId === col.id;
 
@@ -935,12 +963,12 @@ export function WarehousePage() {
                                         col={col}
                                         className={cn('px-2 transition-opacity', isDragging ? 'opacity-30' : '')}
                                         // @ts-ignore
-                                        draggable={!isSticky}
-                                        onDragStart={(e: React.DragEvent) => !isSticky && handleDragStart(e, col.id)}
-                                        onDragOver={(e: React.DragEvent) => !isSticky && handleDragOver(e, col)}
-                                        onDragLeave={!isSticky ? handleDragLeave : undefined}
-                                        onDrop={(e: React.DragEvent) => !isSticky && handleDrop(e, col)}
-                                        onDragEnd={!isSticky ? handleDragEnd : undefined}
+                                        draggable={isDraggable}
+                                        onDragStart={(e: React.DragEvent) => isDraggable && handleDragStart(e, col.id)}
+                                        onDragOver={(e: React.DragEvent) => isDraggable && handleDragOver(e, col)}
+                                        onDragLeave={isDraggable ? handleDragLeave : undefined}
+                                        onDrop={(e: React.DragEvent) => isDraggable && handleDrop(e, col)}
+                                        onDragEnd={isDraggable ? handleDragEnd : undefined}
                                         isDropTarget={isDragOver}
                                         dropPosition={dropPosition as 'left' | 'right' | null}
                                     >
@@ -964,7 +992,7 @@ export function WarehousePage() {
                                                 colAlign={col.align}
                                                 isSortable={col.sortable}
                                                 isSearchable={col.searchable}
-                                                isDragDisabled={isSticky}
+                                                isDragDisabled={!!col.isDragDisabled}
                                                 isSortActive={sort?.col === col.id}
                                                 sortDir={sort?.col === col.id ? sort.dir : null}
                                                 onSortToggle={() => toggleSort(col.id)}
@@ -1051,7 +1079,16 @@ export function WarehousePage() {
                                                 <SmartTableCell key={col.id} col={col} className={cn('px-1', cellBorder)}>
                                                     <div className="flex items-center justify-center relative w-full h-full">
                                                         {item.isFolder ? (
-                                                            item.hasSubfolders ? (
+                                                            item.isSystem ? (
+                                                                <div className="relative inline-flex items-center justify-center" title="Системная папка">
+                                                                    <FolderCog className="w-4 h-4 text-slate-400" />
+                                                                    {item.subFoldersCount ? (
+                                                                        <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
+                                                                            {item.subFoldersCount}
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                            ) : item.hasSubfolders ? (
                                                                 <div className="relative inline-flex items-center justify-center" title={`Вложенных папок: ${item.subFoldersCount}`}>
                                                                     <FolderTree className="w-4 h-4 text-indigo-500 fill-indigo-50" />
                                                                     {item.subFoldersCount ? (

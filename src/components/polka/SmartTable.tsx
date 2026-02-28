@@ -112,6 +112,7 @@ export interface SmartTableColDef {
     minWidth?: string;
     maxWidth?: string;
     freezeEnd?: boolean;
+    isDragDisabled?: boolean;
     tooltip?: string;
 }
 
@@ -126,7 +127,7 @@ interface SmartTableHeadProps extends React.ComponentProps<typeof TableHead> {
 
 export function SmartTableHead({ col, className, style, isDropTarget, dropPosition, ...props }: SmartTableHeadProps) {
     const isAlwaysSticky = col.sticky === true && !col.responsiveSticky;
-    const isLgSticky = col.responsiveSticky === true;
+    const isMdSticky = col.responsiveSticky === true;
     const isRightSticky = !!col.stickyRight;
 
     return (
@@ -141,18 +142,20 @@ export function SmartTableHead({ col, className, style, isDropTarget, dropPositi
                 col.maxWidth,
                 // Sticky logic
                 isAlwaysSticky && 'sticky z-20',
-                isLgSticky && 'lg:sticky lg:z-20',
+                isMdSticky && 'md:sticky md:z-20',
                 isRightSticky && 'sticky z-20',
                 // Offsets
-                (isAlwaysSticky || isLgSticky) && col.stickyLeft,
+                (isAlwaysSticky || isMdSticky) && col.stickyLeft,
                 isRightSticky && col.stickyRightOffset,
                 // Borders
                 'border-b border-border',
-                col.leftBorder && (!isDropTarget || dropPosition !== 'left') && LEFT_BORDER_SHADOW,
-                col.freezeEnd && (!isDropTarget || dropPosition !== 'right') && FREEZE_SHADOW,
+                col.leftBorder && isAlwaysSticky && LEFT_BORDER_SHADOW,
+                col.leftBorder && isMdSticky && 'md:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.15)] md:border-l-2 md:border-border/50',
+                col.freezeEnd && isAlwaysSticky && FREEZE_SHADOW,
+                col.freezeEnd && isMdSticky && 'md:shadow-[6px_0_12px_-4px_rgba(0,0,0,0.15)] md:border-r-2 md:border-border/50',
                 // Backgrounds
                 isAlwaysSticky && 'bg-background',
-                isLgSticky && 'bg-transparent lg:bg-background',
+                isMdSticky && 'bg-transparent md:bg-background',
                 isRightSticky && 'bg-background',
                 // Drag and Drop Indicator
                 isDropTarget && dropPosition === 'left' && 'border-l-2 border-l-primary',
@@ -171,12 +174,12 @@ interface SmartTableCellProps extends React.ComponentProps<typeof TableCell> {
 
 export function SmartTableCell({ col, className, style, children, title, ...props }: SmartTableCellProps) {
     const isAlwaysSticky = col.sticky === true && !col.responsiveSticky;
-    const isLgSticky = col.responsiveSticky === true;
+    const isMdSticky = col.responsiveSticky === true;
     const isRightSticky = !!col.stickyRight;
 
     // Base bg for sticky cells
     const baseBg = 'bg-background group-hover:bg-muted group-data-[state=selected]:bg-muted';
-    const lgBg = 'lg:bg-background group-hover:lg:bg-muted group-data-[state=selected]:lg:bg-muted';
+    const mdBg = 'md:bg-background group-hover:md:bg-muted group-data-[state=selected]:md:bg-muted';
 
     return (
         <TableCell
@@ -190,18 +193,20 @@ export function SmartTableCell({ col, className, style, children, title, ...prop
                 col.maxWidth,
                 // Sticky logic
                 isAlwaysSticky && 'sticky z-10',
-                isLgSticky && 'lg:sticky lg:z-10',
+                isMdSticky && 'md:sticky md:z-10',
                 isRightSticky && 'sticky z-10',
                 // Offsets
-                (isAlwaysSticky || isLgSticky) && col.stickyLeft,
+                (isAlwaysSticky || isMdSticky) && col.stickyLeft,
                 isRightSticky && col.stickyRightOffset,
                 // Borders
                 'border-b border-border',
-                col.leftBorder && LEFT_BORDER_SHADOW,
-                col.freezeEnd && FREEZE_SHADOW,
+                col.leftBorder && isAlwaysSticky && LEFT_BORDER_SHADOW,
+                col.leftBorder && isMdSticky && 'md:shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.15)] md:border-l-2 md:border-border/50',
+                col.freezeEnd && isAlwaysSticky && FREEZE_SHADOW,
+                col.freezeEnd && isMdSticky && 'md:shadow-[6px_0_12px_-4px_rgba(0,0,0,0.15)] md:border-r-2 md:border-border/50',
                 // Backgrounds
                 isAlwaysSticky && baseBg,
-                isLgSticky && lgBg,
+                isMdSticky && mdBg,
                 isRightSticky && baseBg
             )}
             style={style}

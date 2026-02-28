@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Settings, ChevronRight, ChevronLeft, FileText, CaseSensitive, WrapText, Download, Upload, Trash2, Database, RotateCcw, Filter, Columns, ChevronDown, X, AlertTriangle, Share2 } from 'lucide-react';
+import { Calendar, Settings, ChevronRight, ChevronLeft, FileText, CaseSensitive, WrapText, Download, RotateCcw, Filter, Columns, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useLocation } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
@@ -9,6 +9,7 @@ import { useBreakpoint } from '../../utils/useBreakpoint';
 import { MOBILE_BREAKPOINT } from '../../core/config';
 import { cn } from '../ui/utils';
 import { Checkbox } from '../ui/checkbox';
+import { SystemSettingsOverlay } from './SystemSettingsOverlay';
 
 type RightTab = 'context' | 'calendar' | 'settings';
 
@@ -18,7 +19,7 @@ export function RightPanel() {
     rightFooterCards, activeRightCardId, setActiveRightCard,
     mastersPrefs, warehousePrefs, productsPrefs,
     updateMastersPrefs, updateWarehousePrefs, updateProductsPrefs,
-    masters, catalog, resetColumnOrder,
+    resetColumnOrder,
     exportCurrentTable, selectedIds,
     statusFilter, setStatusFilter,
     seniorityFilter, setSeniorityFilter,
@@ -38,8 +39,6 @@ export function RightPanel() {
     updateMastersPrefs: state.updateMastersPrefs,
     updateWarehousePrefs: state.updateWarehousePrefs,
     updateProductsPrefs: state.updateProductsPrefs,
-    masters: state.masters,
-    catalog: state.catalog,
     resetColumnOrder: state.resetColumnOrder,
     exportCurrentTable: state.exportCurrentTable,
     selectedIds: state.selectedIds,
@@ -101,92 +100,9 @@ export function RightPanel() {
 
   const hasSelection = selectedIds && selectedIds.size > 0;
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [systemOverlayOpen, setSystemOverlayOpen] = useState(false);
 
-  // --- Система Бэкапа (Полный экспорт/импорт базы и настроек) ---
-  const exportDatabase = async () => {
-    try {
-      const { db } = await import('../../core/db/database');
-      const mastersData = await db.masters.toArray();
-      const catalogData = await db.catalog.toArray();
-      const state = usePanelStore.getState();
 
-      const backup = {
-        version: '0.8.9',
-        timestamp: new Date().toISOString(),
-        db: { masters: mastersData, catalog: catalogData },
-        settings: {
-          columnPresets: state.columnPresets,
-          activePresetId: state.activePresetId,
-          hiddenColumns: state.hiddenColumns,
-          mastersPrefs: state.mastersPrefs,
-          warehousePrefs: state.warehousePrefs,
-          productsPrefs: state.productsPrefs,
-          mastersColumnOrder: state.mastersColumnOrder,
-          warehouseColumnOrder: state.warehouseColumnOrder,
-          productsColumnOrder: state.productsColumnOrder
-        }
-      };
-
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `polka_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert('Ошибка при экспорте базы');
-    }
-  };
-
-  const importDatabase = async () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = async (e: any) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = async (e: any) => {
-        try {
-          const backup = JSON.parse(e.target.result);
-          if (!backup.db || !backup.settings) throw new Error('Некорректный формат файла бэкапа');
-
-          if (!window.confirm('Вы уверены? Это действие ПОЛНОСТЬЮ заменит все текущие данные на данные из файла.')) return;
-
-          const { db } = await import('../../core/db/database');
-          await db.masters.clear();
-          await db.catalog.clear();
-
-          if (backup.db.masters) await db.masters.bulkAdd(backup.db.masters);
-          if (backup.db.catalog) await db.catalog.bulkAdd(backup.db.catalog);
-
-          usePanelStore.setState({
-            columnPresets: backup.settings.columnPresets,
-            activePresetId: backup.settings.activePresetId,
-            hiddenColumns: backup.settings.hiddenColumns,
-            mastersPrefs: backup.settings.mastersPrefs,
-            warehousePrefs: backup.settings.warehousePrefs,
-            productsPrefs: backup.settings.productsPrefs,
-            mastersColumnOrder: backup.settings.mastersColumnOrder,
-            warehouseColumnOrder: backup.settings.warehouseColumnOrder,
-            productsColumnOrder: backup.settings.productsColumnOrder
-          });
-
-          alert('Импорт успешно завершен! Страница будет перезагружена.');
-          window.location.reload();
-        } catch (err) {
-          console.error(err);
-          alert('Ошибка при импорте: ' + (err as Error).message);
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
 
   // Списки колонок для разных режимов
   const FOLDER_COLS = [
@@ -249,14 +165,14 @@ export function RightPanel() {
         return (
           <div className="p-4 flex flex-col gap-5">
 
-            {/* ═══ Заголовок + Drawer ═══ */}
+            {/* ═══ Заголовок + Система ═══ */}
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">🔧 Инструменты</h3>
               <button
-                onClick={() => setDrawerOpen(!drawerOpen)}
+                onClick={() => setSystemOverlayOpen(true)}
                 className={cn(
                   "p-1.5 rounded-md border transition-colors",
-                  drawerOpen
+                  systemOverlayOpen
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-white text-muted-foreground hover:bg-muted/50"
                 )}
@@ -266,129 +182,7 @@ export function RightPanel() {
               </button>
             </div>
 
-            {/* ── Drawer: Система ── */}
-            {drawerOpen && (
-              <div className="flex flex-col gap-1.5 p-2.5 rounded-md border bg-muted/20" style={{ borderColor: CSS.border }}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">⚙️ Система</span>
-                  <button onClick={() => setDrawerOpen(false)} className="p-0.5 rounded hover:bg-muted/50 text-muted-foreground">
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-                {isWarehousePage && (
-                  <button
-                    onClick={async () => {
-                      const confirmed = window.confirm(`Вы уверены, что хотите очистить локальный кэш Склада? Потребуется полная перекачка данных из интернета.`);
-                      if (confirmed) {
-                        const { db } = await import('../../core/db/database');
-                        await db.catalog.clear();
-                        alert("Кэш очищен. Нажмите 'Обновить' в шапке.");
-                      }
-                    }}
-                    className="flex items-center gap-2 text-xs font-medium h-8 px-3 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors w-full justify-center"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Сбросить кэш
-                  </button>
-                )}
 
-                {isMastersPage && (
-                  <button
-                    onClick={async () => {
-                      const confirmed = window.confirm(`Вы уверены, что хотите очистить локальный кэш Мастеров? Потребуется полная перекачка данных из интернета.`);
-                      if (confirmed) {
-                        const { db } = await import('../../core/db/database');
-                        await db.masters.clear();
-                        alert("Кэш очищен. Нажмите 'Обновить' в шапке.");
-                      }
-                    }}
-                    className="flex items-center gap-2 text-xs font-medium h-8 px-3 rounded-md border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors w-full justify-center"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Сбросить кэш
-                  </button>
-                )}
-
-                {/* --- Raw Data --- */}
-                {isWarehousePage && (
-                  <>
-                    <button
-                      onClick={() => {
-                        const state = usePanelStore.getState();
-                        const currentId = state.warehouseFolderId;
-                        const data = state.catalog;
-
-                        const fileName = isItemView ? "items_raw.json" : "folders_raw.json";
-
-                        let filtered = [];
-                        if (isItemView) {
-                          // Если в папке - берем только её товары. Если в корне (плоский вид) - берем все товары.
-                          filtered = currentId
-                            ? data.filter(i => i.parentId === currentId)
-                            : data.filter(i => !i.isFolder);
-                        } else {
-                          // Режим склада/папок
-                          filtered = data.filter(i => i.isFolder);
-                        }
-
-                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filtered, null, 2));
-                        const downloadAnchorNode = document.createElement('a');
-                        downloadAnchorNode.setAttribute("href", dataStr);
-                        downloadAnchorNode.setAttribute("download", fileName);
-                        document.body.appendChild(downloadAnchorNode);
-                        downloadAnchorNode.click();
-                        downloadAnchorNode.remove();
-                      }}
-                      className="flex items-center gap-2 text-xs font-medium h-8 px-3 rounded-md border border-border bg-white hover:bg-muted/50 transition-colors w-full justify-center"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Raw ({isItemView ? 'Товары' : 'Склад'})
-                    </button>
-                  </>
-                )}
-
-                {isMastersPage && (
-                  <button
-                    onClick={() => {
-                      const blob = new Blob([JSON.stringify(masters, null, 2)], { type: 'application/json' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = 'masters_raw.json';
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    }}
-                    className="flex items-center gap-2 text-xs font-medium h-8 px-3 rounded-md border border-border bg-white hover:bg-muted/50 transition-colors w-full justify-center"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    Raw (Мастера)
-                  </button>
-                )}
-
-                {/* --- Перенос данных (Бэкап) --- */}
-                <div className="pt-2 mt-2 border-t border-dashed border-border">
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold mb-2 ml-1">Перенос данных</p>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={exportDatabase}
-                      className="flex items-center gap-3 text-[11px] font-bold h-10 px-4 rounded-md border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 transition-all justify-center shadow-sm"
-                      title="Выгрузить всю базу и настройки в один файл для переноса на другое устройство"
-                    >
-                      <Share2 className="w-4 h-4" />
-                      Экспорт базы (JSON)
-                    </button>
-                    <button
-                      onClick={importDatabase}
-                      className="flex items-center gap-3 text-[11px] font-bold h-10 px-4 rounded-md border border-amber-200 bg-amber-50/80 hover:bg-amber-100 text-amber-700 transition-all justify-center shadow-sm"
-                      title="Загрузить базу и настройки из файла с другого устройства"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Импорт базы (JSON)
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* ═══ Секция: ВИД ТАБЛИЦЫ ═══ */}
             <div className="flex flex-col gap-2">
@@ -760,6 +554,8 @@ export function RightPanel() {
             })}
         </footer>
       )}
+      {/* SystemSettingsOverlay */}
+      <SystemSettingsOverlay open={systemOverlayOpen} onClose={() => setSystemOverlayOpen(false)} isWarehousePage={isWarehousePage} isMastersPage={isMastersPage} isItemView={isItemView} />
     </aside>
   );
 }

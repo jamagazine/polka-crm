@@ -1,11 +1,11 @@
 export interface WarehouseItem {
     _id: string;
     isFolder: boolean;
-    parentId: string | null;
+    parentId: string; // Заменено string | null на string
     name: string;
-    code: string | null;
-    article: string | null;
-    barcode: string | null;
+    code: string; // Изменено
+    article: string; // Изменено
+    barcode: string; // Изменено
     stock: number;
     price: number | null;
     category?: string;       // Новое поле: Категория из скобок
@@ -40,7 +40,31 @@ export interface WarehouseItem {
 
 const EXCLUDED_CATEGORY_TERMS = ['Архив', 'Пустая', 'Товары без папки'];
 
-export function parseCatalogItem(rawItem: any): WarehouseItem {
+/** Мягкая валидация обязательных полей перед записью в БД */
+function validateItem(item: any): boolean {
+    if (!item) return false;
+    const id = item._id || item.id || item.uuid || item.uid;
+    if (!id || typeof id !== 'string' || id.trim() === '') {
+        try {
+            const { appLog } = require('../hooks/useAppLogger');
+            appLog(`[VALIDATION] Пропущен товар без ID: ${item.name || '(без имени)'}`, 'warn');
+        } catch { /* silent */ }
+        return false;
+    }
+    if (!item.name || typeof item.name !== 'string' || item.name.trim() === '') {
+        try {
+            const { appLog } = require('../hooks/useAppLogger');
+            appLog(`[VALIDATION] Пропущен товар без имени: ID=${id}`, 'warn');
+        } catch { /* silent */ }
+        return false;
+    }
+    return true;
+}
+
+export function parseCatalogItem(rawItem: any): WarehouseItem | null {
+    if (!rawItem || !validateItem(rawItem)) return null;
+    const finalId = rawItem._id || rawItem.id || rawItem.uuid || rawItem.uid;
+    if (!finalId) return null;
     let name = rawItem.name || '';
 
     // Метка Архива
@@ -61,24 +85,28 @@ export function parseCatalogItem(rawItem: any): WarehouseItem {
     }
 
     // Технические папки / товары (если применимо)
-    const isSystem = name.includes('`');
+    const isSystem = name.startsWith('Яя `(');
 
     // Для склада оставляем имя 1:1 как в API (по просьбе пользователя)
     const cleanName = name;
 
-    // При переносе в корень CloudShop может выставить id_group = "" или "0", но оставить старый _parent.
-    // Если мы используем ||, то falsy значения (как "") проваливаются и мы ошибочно берем старый _parent.
-    let parentId = rawItem.id_group;
-    if (parentId === undefined || parentId === null) {
-        parentId = rawItem._parent;
+    // Сначала берём id_group (даже если он 0!), и только если его совсем нет — _parent
+    let pRaw = (rawItem.id_group !== undefined && rawItem.id_group !== null)
+        ? rawItem.id_group
+        : (rawItem._parent ?? "");
+    let pStr = String(pRaw).trim();
+    if (pStr === '' || pStr === '0' || pStr === 'null' || pStr === 'undefined' || pStr === 'false') {
+        pStr = "";
     }
 
-    // В CloudShop корень иногда идет как пустая строка, '0' или null
-    if (!parentId || String(parentId).trim() === '' || String(parentId).trim() === '0') {
-        parentId = null;
+    let stock = 0;
+    if (rawItem.total_stock !== undefined) {
+        stock = Number(rawItem.total_stock) || 0;
+    } else if (rawItem.stock && typeof rawItem.stock === 'object') {
+        stock = Object.values(rawItem.stock).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+    } else {
+        stock = Number(rawItem.stock) || 0;
     }
-
-    const stock = rawItem.total_stock ? parseFloat(rawItem.total_stock) : 0;
     const price = rawItem.price ? parseFloat(rawItem.price) : 0; // fallback to 0 instead of null for easier math
     const cost = rawItem.buy_price ? parseFloat(rawItem.buy_price) : 0;
     const purchase = rawItem.purchase ? parseFloat(rawItem.purchase) : 0;
@@ -99,13 +127,13 @@ export function parseCatalogItem(rawItem: any): WarehouseItem {
     const multiIssuesCount = isProduct && issuesCount >= 2 ? 1 : 0;
 
     return {
-        _id: rawItem._id,
+        _id: String(finalId),
         isFolder: rawItem.type === 'group',
-        parentId,
-        name: cleanName,
-        code: rawItem.code || null,
-        article: rawItem.sku || null,
-        barcode: rawItem.barcode || null,
+        parentId: pStr,
+        name: rawItem.name ? String(rawItem.name).trim() : "Без названия",
+        code: rawItem.code ? String(rawItem.code) : "",
+        article: rawItem.sku ? String(rawItem.sku) : "",
+        barcode: rawItem.barcode ? String(rawItem.barcode) : "",
         stock,
         price,
         cost,
