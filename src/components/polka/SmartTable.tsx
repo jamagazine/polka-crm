@@ -115,8 +115,8 @@ export interface SmartTableColDef {
     tooltip?: string;
 }
 
-const FREEZE_SHADOW = 'shadow-[4px_0_12px_-4px_rgba(0,0,0,0.1)] border-r border-border';
-const LEFT_BORDER_SHADOW = 'shadow-[-4px_0_8px_-2px_rgba(0,0,0,0.1)] border-l border-border';
+const FREEZE_SHADOW = 'shadow-[6px_0_12px_-4px_rgba(0,0,0,0.15)] border-r-2 border-border/50';
+const LEFT_BORDER_SHADOW = 'shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.15)] border-l-2 border-border/50';
 
 interface SmartTableHeadProps extends React.ComponentProps<typeof TableHead> {
     col: SmartTableColDef;
@@ -151,9 +151,9 @@ export function SmartTableHead({ col, className, style, isDropTarget, dropPositi
                 col.leftBorder && (!isDropTarget || dropPosition !== 'left') && LEFT_BORDER_SHADOW,
                 col.freezeEnd && (!isDropTarget || dropPosition !== 'right') && FREEZE_SHADOW,
                 // Backgrounds
-                isAlwaysSticky && 'bg-[var(--polka-bg-light)]',
-                isLgSticky && 'bg-transparent lg:bg-[var(--polka-bg-light)]',
-                isRightSticky && 'bg-[var(--polka-bg-light)]',
+                isAlwaysSticky && 'bg-background',
+                isLgSticky && 'bg-transparent lg:bg-background',
+                isRightSticky && 'bg-background',
                 // Drag and Drop Indicator
                 isDropTarget && dropPosition === 'left' && 'border-l-2 border-l-primary',
                 isDropTarget && dropPosition === 'right' && 'border-r-2 border-r-primary'
@@ -175,8 +175,8 @@ export function SmartTableCell({ col, className, style, children, title, ...prop
     const isRightSticky = !!col.stickyRight;
 
     // Base bg for sticky cells
-    const baseBg = 'bg-[var(--polka-bg-light)] group-hover:bg-muted group-data-[state=selected]:bg-muted';
-    const lgBg = 'lg:bg-[var(--polka-bg-light)] group-hover:lg:bg-muted group-data-[state=selected]:lg:bg-muted';
+    const baseBg = 'bg-background group-hover:bg-muted group-data-[state=selected]:bg-muted';
+    const lgBg = 'lg:bg-background group-hover:lg:bg-muted group-data-[state=selected]:lg:bg-muted';
 
     return (
         <TableCell

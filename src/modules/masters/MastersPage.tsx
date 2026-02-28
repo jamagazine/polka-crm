@@ -251,28 +251,25 @@ export function MastersPage() {
             sticky: true, stickyLeft: 'left-0',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
+            freezeEnd: true,
             tooltip: 'Порядковый номер'
         },
         {
             id: 'type', label: <User className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            sticky: true, stickyLeft: 'left-[50px]',
             width: 'w-[60px]', minWidth: 'min-w-[60px]',
             align: 'center',
             tooltip: 'Тип строки (Системный/Активный/Архив или Папка/Товар)'
         },
         {
             id: 'status', label: <Clock className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            sticky: true, stickyLeft: 'left-[110px]',
             width: 'w-[40px]', minWidth: 'min-w-[40px]',
             align: 'center',
             tooltip: 'Состояние (Стаж или Диагностика ошибок)'
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
-            responsiveSticky: true, stickyLeft: 'lg:left-[150px]',
             width: showRawNames ? 'w-[500px]' : (!showRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showRawNames ? 'min-w-[500px]' : (!showRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
-            freezeEnd: true,
             tooltip: 'Наименование позиции'
         },
         { id: 'category', label: 'Категория', sortable: true, searchable: true, width: 'w-[190px]', minWidth: 'min-w-[190px]', tooltip: 'Категория мастера' },
@@ -313,16 +310,13 @@ export function MastersPage() {
         }
 
         // Динамически пересчитываем stickyLeft для видимых sticky-колонок
-        const stickyWidths: Record<string, number> = { index: 50, type: 60, status: 40 };
+        const stickyWidths: Record<string, number> = { index: 50 };
         let cumulativeLeft = 0;
         return result.map(col => {
             if (col.sticky && stickyWidths[col.id] !== undefined) {
                 const updated = { ...col, stickyLeft: `left-[${cumulativeLeft}px]` };
                 cumulativeLeft += stickyWidths[col.id];
                 return updated;
-            }
-            if (col.responsiveSticky) {
-                return { ...col, stickyLeft: `lg:left-[${cumulativeLeft}px]` };
             }
             return col;
         });
@@ -696,7 +690,7 @@ export function MastersPage() {
              * Единственный scroll-контейнер.
              */}
             <div className="flex-1 overflow-x-auto overflow-y-auto">
-                <table className="table-fixed min-w-max w-full caption-bottom text-sm border-separate border-spacing-0">
+                <table className="table-fixed min-w-[800px] w-full caption-bottom text-sm border-separate border-spacing-0">
 
                     {/* ══ Шапка ══ */}
                     <TableHeader>

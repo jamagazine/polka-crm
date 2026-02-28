@@ -98,28 +98,25 @@ export function WarehousePage() {
             id: 'index', label: '#', sortable: false, searchable: false,
             sticky: true, stickyLeft: 'left-0',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
+            freezeEnd: true,
             tooltip: 'Порядковый номер'
         },
         {
             id: 'type', label: <Folder className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            sticky: true, stickyLeft: 'left-[50px]',
             width: 'w-[60px]', minWidth: 'min-w-[60px]',
             align: 'center',
             tooltip: 'Тип строки (Системный/Активный/Архив или Папка/Товар)'
         },
         {
             id: 'status', label: <Activity className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            sticky: true, stickyLeft: 'left-[110px]',
             width: 'w-[40px]', minWidth: 'min-w-[40px]',
             align: 'center',
             tooltip: 'Состояние (Стаж или Диагностика ошибок)'
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
-            responsiveSticky: true, stickyLeft: 'lg:left-[150px]',
             width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
-            freezeEnd: true,
             tooltip: 'Наименование позиции'
         },
         { id: 'category', label: 'Категория', sortable: true, searchable: true, width: 'w-[200px]', minWidth: 'min-w-[200px]' },
@@ -136,28 +133,25 @@ export function WarehousePage() {
             id: 'index', label: '#', sortable: false, searchable: false,
             sticky: true, stickyLeft: 'left-0',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
+            freezeEnd: true,
             tooltip: 'Порядковый номер'
         },
         {
             id: 'type', label: <Package className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            sticky: true, stickyLeft: 'left-[50px]',
             width: 'w-[60px]', minWidth: 'min-w-[60px]',
             align: 'center',
             tooltip: 'Фото товара'
         },
         {
             id: 'status', label: <span title="Движение" className="flex items-center justify-center w-full h-full"><Activity className="w-4 h-4 text-muted-foreground" /></span>, sortable: true, searchable: false,
-            sticky: true, stickyLeft: 'left-[110px]',
             width: 'w-[40px]', minWidth: 'min-w-[40px]',
             align: 'center',
             tooltip: 'Движение или ошибки'
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
-            responsiveSticky: true, stickyLeft: 'lg:left-[150px]',
             width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
-            freezeEnd: true,
             tooltip: 'Наименование позиции'
         },
         { id: 'code', label: 'Код', sortable: true, searchable: true, width: 'w-[130px]', minWidth: 'min-w-[130px]', align: 'center', tooltip: 'Внутренний код CloudShop' },
@@ -205,16 +199,13 @@ export function WarehousePage() {
         }
 
         // Динамически пересчитываем stickyLeft для видимых sticky-колонок
-        const stickyWidths: Record<string, number> = { index: 50, type: 60, status: 40 };
+        const stickyWidths: Record<string, number> = { index: 50 };
         let cumulativeLeft = 0;
         return result.map(col => {
             if (col.sticky && stickyWidths[col.id] !== undefined) {
                 const updated = { ...col, stickyLeft: `left-[${cumulativeLeft}px]` };
                 cumulativeLeft += stickyWidths[col.id];
                 return updated;
-            }
-            if (col.responsiveSticky) {
-                return { ...col, stickyLeft: `lg:left-[${cumulativeLeft}px]` };
             }
             return col;
         });
@@ -930,7 +921,7 @@ export function WarehousePage() {
     return (
         <div className="-mx-6 -my-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] flex flex-col overflow-hidden">
             <div className="flex-1 overflow-x-auto overflow-y-auto">
-                <table className="table-fixed min-w-max w-full caption-bottom text-sm border-separate border-spacing-0">
+                <table className="table-fixed min-w-[800px] w-full caption-bottom text-sm border-separate border-spacing-0">
                     <TableHeader>
                         <TableRow className="bg-muted/30 hover:bg-muted/30 h-[50px]">
                             {activeColumns.map(col => {
