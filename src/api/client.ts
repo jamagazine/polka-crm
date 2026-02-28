@@ -4,7 +4,8 @@ import { log, logError } from '../utils/logger';
 import { toast } from 'sonner';
 
 const IS_GITHUB_PAGES = typeof window !== 'undefined' && window.location.hostname.endsWith('.github.io');
-const BASE = IS_GITHUB_PAGES ? 'https://web.cloudshop.ru' : '/api-cs';
+const PROXY = 'https://cors-anywhere.herokuapp.com/';
+const BASE = IS_GITHUB_PAGES ? `${PROXY}https://web.cloudshop.ru` : '/api-cs';
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 

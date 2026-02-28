@@ -375,7 +375,7 @@ export function RightPanel() {
                       title="Выгрузить всю базу и настройки в один файл для переноса на другое устройство"
                     >
                       <Share2 className="w-4 h-4" />
-                      Экспорт всей базы
+                      Экспорт базы (JSON)
                     </button>
                     <button
                       onClick={importDatabase}
@@ -383,7 +383,7 @@ export function RightPanel() {
                       title="Загрузить базу и настройки из файла с другого устройства"
                     >
                       <Upload className="w-4 h-4" />
-                      Импорт базы
+                      Импорт базы (JSON)
                     </button>
                   </div>
                 </div>

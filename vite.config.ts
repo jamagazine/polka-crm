@@ -9,8 +9,7 @@ import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  // ЭТО САМАЯ ВАЖНАЯ СТРОКА ДЛЯ GITHUB PAGES:
-  base: '/polka-crm/',
+  base: './',
 
   plugins: [
     react(),

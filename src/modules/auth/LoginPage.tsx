@@ -13,12 +13,17 @@ export function LoginPage() {
         setError('');
         setLoading(true);
 
-        const success = await loginFlow(email, password);
+        try {
+            const success = await loginFlow(email, password);
 
-        if (!success) {
-            setError('Неверный логин или пароль');
+            if (!success) {
+                setError('Неверный логин или пароль. Попробуйте admin/admin или Автономный режим.');
+            }
+        } catch (err) {
+            setError('Сервер недоступен. Работа в автономном режиме?');
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     return (

@@ -23,15 +23,7 @@ export const createAuthSlice = (
     loginFlow: async (email, password) => {
         const toastId = toast.loading('Авторизация...');
 
-        // 1. Потайной ход для GitHub Pages
-        const isGithub = typeof window !== 'undefined' && window.location.hostname.includes('github.io');
-        if (isGithub) {
-            set(() => ({ isAuthenticated: true, userEmail: email || 'github-user@polka.crm' }));
-            toast.success('Вход выполнен (GitHub Bypass)', { id: toastId });
-            return true;
-        }
-
-        // 2. Потайной ход admin/admin
+        // 1. Потайной ход admin/admin
         if (email === 'admin' && password === 'admin') {
             set(() => ({ isAuthenticated: true, userEmail: 'admin@polka.crm' }));
             toast.success('Вход выполнен (Admin Bypass)', { id: toastId });
