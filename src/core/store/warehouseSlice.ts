@@ -1,6 +1,6 @@
-import { fetchAllCatalog, RawCatalogItem } from '../../api/client';
-import { parseCatalogItem, WarehouseItem } from '../../utils/parseCatalog';
-import { db } from '../db/database';
+import { type RawCatalogItem } from '../../api/client';
+import { parseCatalogItem, type WarehouseItem } from '../../utils/parseCatalog';
+import { catalogService } from '../../services/dataService';
 
 export interface WarehouseSlice {
     catalog: WarehouseItem[];
@@ -42,9 +42,9 @@ export const createWarehouseSlice = (
         if (!forceSync) {
             globalSet(() => ({ isCatalogLoading: true }));
             try {
-                const cachedCatalog = await db.catalog.toArray();
+                const cachedCatalog = await catalogService.getCatalog();
                 if (cachedCatalog.length > 0) {
-                    const sortedCached = cachedCatalog.sort((a, b) => {
+                    const sortedCached = cachedCatalog.sort((a: WarehouseItem, b: WarehouseItem) => {
                         if (a.isFolder && !b.isFolder) return -1;
                         if (!a.isFolder && b.isFolder) return 1;
                         return (a.name || '').localeCompare(b.name || '', 'ru', { sensitivity: 'base' });
@@ -61,7 +61,7 @@ export const createWarehouseSlice = (
 
         globalSet(() => ({ isCatalogLoading: true, isParsing: true, parseProgress: 'Инициализация...' }));
         try {
-            const rawCatalog: RawCatalogItem[] = await fetchAllCatalog((offset) => {
+            const rawCatalog: RawCatalogItem[] = await catalogService.syncCatalog((offset) => {
                 globalSet(() => ({ parseProgress: `Загрузка: ${offset}...` }));
             });
             // 1. Парсим
@@ -93,7 +93,7 @@ export const createWarehouseSlice = (
                 const children = folderChildren.get(folderId) || [];
                 for (const child of children) {
                     if (child.isFolder) {
-                        const stats = getRecursiveStats(child.id);
+                        const stats = getRecursiveStats(child._id);
                         totalStock += stats.totalStock;
                         totalValue += stats.totalValue;
                         skuCount += stats.skuCount;
@@ -118,10 +118,10 @@ export const createWarehouseSlice = (
 
             const enrichedCatalog = parsedItems.map(item => {
                 if (item.isFolder) {
-                    const children = folderChildren.get(item.id) || [];
+                    const children = folderChildren.get(item._id) || [];
                     const directFolders = children.filter(c => c.isFolder).length;
                     const directItems = children.filter(c => !c.isFolder).length;
-                    const stats = getRecursiveStats(item.id);
+                    const stats = getRecursiveStats(item._id);
 
                     return {
                         ...item,
@@ -140,10 +140,6 @@ export const createWarehouseSlice = (
                 }
                 return item;
             });
-
-            // 3. Кешируем в IndexedDB
-            await db.catalog.clear();
-            await db.catalog.bulkPut(enrichedCatalog);
 
             const finalCatalog = enrichedCatalog
                 .sort((a, b) => {

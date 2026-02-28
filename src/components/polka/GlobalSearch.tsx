@@ -112,7 +112,7 @@ export function GlobalSearch({ onClose }: { onClose: () => void }) {
     };
 
     const handleItemClick = (item: typeof catalog[0]) => {
-        setHighlightedIds(new Set([item.id]));
+        setHighlightedIds(new Set([item._id]));
         setWarehouseRootPage(item.parentId || undefined);
         navigate('/warehouse');
         onClose();
@@ -248,8 +248,8 @@ export function GlobalSearch({ onClose }: { onClose: () => void }) {
                                         </div>
                                         {foundFolders.map(f => (
                                             <div
-                                                key={f.id}
-                                                onClick={() => handleFolderClick(f.id)}
+                                                key={f._id}
+                                                onClick={() => handleFolderClick(f._id)}
                                                 className="px-4 py-2 hover:bg-muted/50 cursor-pointer flex items-center gap-3 transition-colors"
                                             >
                                                 <Folder className="w-4 h-4 text-blue-500 fill-blue-50 flex-shrink-0" />
@@ -277,7 +277,7 @@ export function GlobalSearch({ onClose }: { onClose: () => void }) {
                                         </div>
                                         {foundItems.map(i => (
                                             <div
-                                                key={i.id}
+                                                key={i._id}
                                                 onClick={() => handleItemClick(i)}
                                                 className={cn(
                                                     "px-4 py-2 hover:bg-muted/50 cursor-pointer flex items-center gap-3 transition-colors",

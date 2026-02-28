@@ -1,11 +1,22 @@
-/* ─── API-клиент для CloudShop ─── */
+/* ─── API-клиент для CloudShop (Axios) ─── */
 
+import axios from 'axios';
 import { log, logError } from '../utils/logger';
 import { toast } from 'sonner';
 
 const IS_GITHUB_PAGES = typeof window !== 'undefined' && window.location.hostname.endsWith('.github.io');
 const PROXY = 'https://cors-anywhere.herokuapp.com/';
-const BASE = IS_GITHUB_PAGES ? `${PROXY}https://web.cloudshop.ru` : '/api-cs';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://web.cloudshop.ru';
+
+const apiBase = IS_GITHUB_PAGES ? `${PROXY}${BASE_URL}` : '/api-cs';
+
+export const apiClient = axios.create({
+    baseURL: apiBase,
+    withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
 
 // ─── Типы ────────────────────────────────────────────────────────────────────
 
@@ -39,49 +50,34 @@ export interface Master {
 
 /**
  * Авторизация в CloudShop.
- * POST /api-cs/auth → проксируется на https://web.cloudshop.ru/auth
  */
-export async function login(email: string, password: string): Promise<Response> {
+export async function login(email: string, password: string) {
     log('[AUTH API] Начинаю запрос авторизации...', { email });
 
     try {
-        const res = await fetch(`${BASE}/auth`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ login: email, password }),
-        });
-
+        const res = await apiClient.post('/auth', { login: email, password });
         log('[AUTH API] Ответ получен:', res.status, res.statusText);
         return res;
-    } catch (err) {
-        logError('[AUTH API] Ошибка сети:', err);
+    } catch (err: any) {
+        logError('[AUTH API] Ошибка:', err);
+        // Сохраняем совместимость с fetch Response по полю ok/status
+        if (err.response) return err.response;
         toast.error('Сервер авторизации недоступен. Проверьте подключение или используйте Демо-вход.');
         throw err;
     }
 }
 
 /**
- * Список поставщиков (мастеров) из CloudShop.
- * GET /api-cs/proxy/?path=...suppliers...
+ * Список поставщиков (мастеров).
  */
 export async function fetchMasters(): Promise<Master[]> {
-    const url =
-        `${BASE}/proxy/?path=%2Fdata%2F60513087cb4d27a35ac17b13%2Fsuppliers&api=v3&timezone=18000`;
-
+    const path = `/proxy/?path=%2Fdata%2F60513087cb4d27a35ac17b13%2Fsuppliers&api=v3&timezone=18000`;
     log('[MASTERS API] Запрашиваю список мастеров...');
 
     try {
-        const res = await fetch(url, { credentials: 'include' });
+        const res = await apiClient.get(path);
+        const json = res.data;
 
-        if (!res.ok) {
-            logError('[MASTERS API] Ошибка HTTP:', res.status, res.statusText);
-            return [];
-        }
-
-        const json = await res.json();
-
-        // Поддерживаем формат { data: [...] } и голый массив
         const list: Master[] = Array.isArray(json)
             ? json
             : Array.isArray(json?.data)
@@ -91,14 +87,14 @@ export async function fetchMasters(): Promise<Master[]> {
         log(`[MASTERS API] Получено ${list.length} записей`);
         return list;
     } catch (err) {
-        logError('[MASTERS API] Ошибка сети:', err);
+        logError('[MASTERS API] Ошибка:', err);
         toast.error('Не удалось загрузить список мастеров. Возможно, прокси-сервер недоступен.');
         return [];
     }
 }
 
 /**
- * Элемент каталога (Склад) из CloudShop
+ * Элемент каталога (Склад)
  */
 export interface RawCatalogItem {
     _id: string;
@@ -110,7 +106,7 @@ export interface RawCatalogItem {
     barcode?: string;
     total_stock?: number;
     price?: number;
-    [key: string]: any; // fallback
+    [key: string]: any;
 }
 
 /**
@@ -118,27 +114,26 @@ export interface RawCatalogItem {
  */
 async function fetchCatalogChunk(offset: number): Promise<RawCatalogItem[]> {
     const limit = 1000;
-    const url = `${BASE}/proxy/?path=%2Fdata%2F60513087cb4d27a35ac17b13%2Fcatalog&api=v3&limit=${limit}&offset=${offset}&timezone=18000`;
+    const path = `/proxy/?path=%2Fdata%2F60513087cb4d27a35ac17b13%2Fcatalog&api=v3&limit=${limit}&offset=${offset}&timezone=18000`;
 
     log(`[CATALOG API] Запрашиваю ${limit} записей со смещением ${offset}...`);
 
-    const res = await fetch(url, { credentials: 'include' });
-    if (!res.ok) {
-        logError('[CATALOG API] Ошибка HTTP:', res.status, res.statusText);
+    try {
+        const res = await apiClient.get(path);
+        const json = res.data;
+        return Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
+    } catch (err) {
+        logError('[CATALOG API] Ошибка HTTP:', err);
         return [];
     }
-
-    const json = await res.json();
-    return Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
 }
 
 /**
- * Цикличная загрузка всего каталога CloudShop
+ * Цикличная загрузка всего каталога
  */
 export async function fetchAllCatalog(onProgress?: (offset: number) => void): Promise<RawCatalogItem[]> {
     log('[CATALOG API] Начинаю полную загрузку каталога...');
 
-    let allItems: RawCatalogItem[] = [];
     let offset = 0;
     let hasMore = true;
     const uniqueMap = new Map<string, RawCatalogItem>();
@@ -149,9 +144,6 @@ export async function fetchAllCatalog(onProgress?: (offset: number) => void): Pr
             if (onProgress) onProgress(offset);
 
             const chunk = await fetchCatalogChunk(offset);
-
-            const previousSize = uniqueMap.size;
-
             let allAlreadySeen = true;
 
             for (const item of chunk) {
@@ -168,13 +160,11 @@ export async function fetchAllCatalog(onProgress?: (offset: number) => void): Pr
 
             log(`[CATALOG API] Смещение ${offset}, уникальных записей: ${uniqueMap.size}`);
 
-            // 1. Защита от бесконечного цикла (если все ID в чанке нами уже обрабатывались)
             if (chunk.length > 0 && allAlreadySeen) {
-                log('[CATALOG API] В чанке нет ни одного нового ID (даже удаленного). Остановка (Infinite Loop).');
+                log('[CATALOG API] В чанке нет ни одного нового ID. Остановка.');
                 break;
             }
 
-            // 2. Стандартная остановка по концу списка
             if (chunk.length < 1000) {
                 hasMore = false;
             } else {
@@ -183,7 +173,7 @@ export async function fetchAllCatalog(onProgress?: (offset: number) => void): Pr
         }
         log(`[CATALOG API] Успешно загружен весь каталог (${uniqueMap.size} уникальных элементов).`);
     } catch (err) {
-        logError('[CATALOG API] Ошибка сети при полной загрузке:', err);
+        logError('[CATALOG API] Ошибка при полной загрузке:', err);
         toast.error('Ошибка при загрузке каталога. Данные могут быть неполными.');
     }
 

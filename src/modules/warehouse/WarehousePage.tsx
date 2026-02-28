@@ -244,7 +244,7 @@ export function WarehousePage() {
         if (warehouseRootPage && typeof warehouseRootPage === 'string') {
             setViewMode('tree');
             setCurrentFolderId(warehouseRootPage);
-            const folder = catalog.find(c => c.id === warehouseRootPage);
+            const folder = catalog.find(c => c._id === warehouseRootPage);
             if (folder) {
                 setCurrentFolderName(folder.name);
             }
@@ -372,13 +372,13 @@ export function WarehousePage() {
         if (currentFolderId !== null) {
             folderTree = [];
             const ancestors: WarehouseItem[] = [];
-            let curr = catalog.find(i => i.id === currentFolderId);
+            let curr = catalog.find(i => i._id === currentFolderId);
 
             // 1. Собираем всех предков текущей папки
             while (curr) {
                 ancestors.unshift(curr);
                 const pid = curr.parentId;
-                curr = pid ? catalog.find(i => i.id === pid) : undefined;
+                curr = pid ? catalog.find(i => i._id === pid) : undefined;
             }
 
             // 2. Добавляем корень
@@ -388,7 +388,7 @@ export function WarehousePage() {
             for (let i = 0; i < ancestors.length - 1; i++) {
                 const ancestor = ancestors[i];
                 folderTree.push({
-                    id: ancestor.id,
+                    id: ancestor._id,
                     name: ancestor.name || 'Без названия',
                     level: i + 1
                 });
@@ -412,12 +412,12 @@ export function WarehousePage() {
 
             // Если текущая папка была найдена, гарантируем ее добавление даже если она не в siblings
             // (хотя она там будет, так как фильтр не исключает currentFolderId)
-            const sortedSiblings = siblings.filter(s => s.id !== currentFolderId);
-            const currentObj = siblings.find(s => s.id === currentFolderId) || currentFolder;
+            const sortedSiblings = siblings.filter(s => s._id !== currentFolderId);
+            const currentObj = siblings.find(s => s._id === currentFolderId) || currentFolder;
 
             if (currentObj) {
                 folderTree.push({
-                    id: currentObj.id,
+                    id: currentObj._id,
                     name: currentObj.name || 'Без названия',
                     level: siblingsLevel,
                     isCurrent: true
@@ -426,7 +426,7 @@ export function WarehousePage() {
 
             for (const sibling of sortedSiblings) {
                 folderTree.push({
-                    id: sibling.id,
+                    id: sibling._id,
                     name: sibling.name || 'Без названия',
                     level: siblingsLevel,
                     isSibling: true
@@ -454,9 +454,9 @@ export function WarehousePage() {
                     setCurrentFolderId(null);
                     setCurrentFolderName(null);
                 } else {
-                    const target = catalog.find(i => i.id === id);
+                    const target = catalog.find(i => i._id === id);
                     if (target) {
-                        setCurrentFolderId(target.id);
+                        setCurrentFolderId(target._id);
                         setCurrentFolderName(target.name);
                     }
                 }
@@ -519,7 +519,7 @@ export function WarehousePage() {
 
             // ── Фильтр "Только выделенные" ──
             if (showOnlySelected && selectedIds.size > 0) {
-                if (!selectedIds.has(item.id)) return false;
+                if (!selectedIds.has(item._id)) return false;
             }
 
             // Дополнительно применяем поиск по колонкам
@@ -738,7 +738,7 @@ export function WarehousePage() {
             const firstId = Array.from(highlightedIds)[0];
             if (firstId) {
                 // Находим на какой странице этот элемент
-                const index = sortedData.findIndex(item => item.id === firstId);
+                const index = sortedData.findIndex(item => item._id === firstId);
                 if (index !== -1) {
                     const targetPage = Math.floor(index / pageSize) + 1;
                     if (targetPage !== currentPage) {
@@ -813,7 +813,7 @@ export function WarehousePage() {
             const cols = activeColumnsRef.current
                 .filter(c => typeof c.label === 'string')
                 .map(c => ({ id: c.id, label: c.label as string }));
-            exportSmartTable(sortedDataRef.current, cols, getValue, selectedIds, 'id', 'Склад');
+            exportSmartTable(sortedDataRef.current, cols, getValue, selectedIds, '_id', 'Склад');
         };
         setExportCallback(exportFn);
         return () => setExportCallback(null);
@@ -827,8 +827,8 @@ export function WarehousePage() {
         });
 
     // Логика состояния чекбокса в заголовке
-    const visibleIds = useMemo(() => paginatedData.map(d => d.id), [paginatedData]);
-    const allFilteredIds = useMemo(() => filteredData.map(d => d.id), [filteredData]);
+    const visibleIds = useMemo(() => paginatedData.map(d => d._id), [paginatedData]);
+    const allFilteredIds = useMemo(() => filteredData.map(d => d._id), [filteredData]);
 
     // DND Handlers
     const handleDragStart = (e: React.DragEvent, colId: string) => {
@@ -996,13 +996,13 @@ export function WarehousePage() {
 
                     <TableBody>
                         {paginatedData.map((item, idx) => {
-                            const isChecked = selectedIds.has(item.id);
-                            const isHighlighted = highlightedIds.has(item.id);
+                            const isChecked = selectedIds.has(item._id);
+                            const isHighlighted = highlightedIds.has(item._id);
 
                             return (
                                 <TableRow
-                                    key={item.id}
-                                    id={`row-${item.id}`}
+                                    key={item._id}
+                                    id={`row-${item._id}`}
                                     className={cn(
                                         'group',
                                         isHighlighted && 'bg-amber-100/60 animate-pulse',
@@ -1014,7 +1014,7 @@ export function WarehousePage() {
                                     onClick={(e) => {
                                         if (isHighlighted) clearHighlightedIds();
                                         if (selectedIds.size > 0) {
-                                            toggleSelection(item.id);
+                                            toggleSelection(item._id);
                                             return;
                                         }
 
@@ -1022,7 +1022,7 @@ export function WarehousePage() {
                                             if (currentFolderId === null) {
                                                 setWarehouseRootPage(currentPage);
                                             }
-                                            setCurrentFolderId(item.id);
+                                            setCurrentFolderId(item._id);
                                             setCurrentFolderName(item.name);
                                         }
                                     }}
@@ -1048,7 +1048,7 @@ export function WarehousePage() {
                                                         >
                                                             <Checkbox
                                                                 checked={isChecked}
-                                                                onCheckedChange={() => toggleSelection(item.id)}
+                                                                onCheckedChange={() => toggleSelection(item._id)}
                                                                 aria-label={`Выбрать строку ${idx + 1}`}
                                                             />
                                                         </span>

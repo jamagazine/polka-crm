@@ -12,7 +12,7 @@ export class PolkaDB extends Dexie {
         // Определяем схемы таблиц (индексируемые поля)
         this.version(1).stores({
             masters: '_id, name', // _id как PK для мастеров
-            catalog: 'id, parentId, name, article' // id как PK для товаров
+            catalog: '_id, parentId, name, article' // _id как PK для товаров
         });
     }
 }

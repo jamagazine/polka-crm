@@ -1,5 +1,5 @@
 export interface WarehouseItem {
-    id: string;
+    _id: string;
     isFolder: boolean;
     parentId: string | null;
     name: string;
@@ -99,7 +99,7 @@ export function parseCatalogItem(rawItem: any): WarehouseItem {
     const multiIssuesCount = isProduct && issuesCount >= 2 ? 1 : 0;
 
     return {
-        id: rawItem._id,
+        _id: rawItem._id,
         isFolder: rawItem.type === 'group',
         parentId,
         name: cleanName,

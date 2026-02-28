@@ -6,6 +6,7 @@ import { login } from '../../api/client';
 export interface AuthSlice {
     isAuthenticated: boolean;
     userEmail: string;
+    token: string;
 
     loginFlow: (email: string, password: string) => Promise<boolean>;
     loginDemo: () => void;
@@ -19,6 +20,7 @@ export const createAuthSlice = (
 ): AuthSlice => ({
     isAuthenticated: false,
     userEmail: '',
+    token: '',
 
     loginFlow: async (email, password) => {
         const toastId = toast.loading('Авторизация...');

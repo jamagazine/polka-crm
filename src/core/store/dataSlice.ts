@@ -1,8 +1,8 @@
 /* ─── Типы ─── */
 
-import { type Master, fetchMasters } from '../../api/client';
+import { type Master } from '../../api/client';
 import { parseMasterData } from '../../utils/parseMaster';
-import { db } from '../db/database';
+import { mastersService, catalogService } from '../../services/dataService';
 
 export { type Master };
 
@@ -283,42 +283,20 @@ export const createDataSlice = (
     loadMasters: async (forceSync = false) => {
         set(() => ({ isLoading: true }));
         try {
-            if (!forceSync) {
-                // Пытаемся загрузить из локальной БД
-                const cachedMasters = await db.masters.toArray();
-                if (cachedMasters.length > 0) {
-                    const sortedCached = cachedMasters.sort((a, b) =>
-                        (a.sortKey || a.name || '').localeCompare(b.sortKey || b.name || '', 'ru', { sensitivity: 'base' })
-                    );
-                    set((s) => ({
-                        masters: sortedCached,
-                        totalRows: sortedCached.length,
-                        totalPages: Math.ceil(sortedCached.length / s.pageSize) || 1,
-                        currentPage: 1,
-                    }));
-                    return; // Успешно достали из кэша
-                }
-            }
+            // Используем сервис для получения данных
+            const list = await mastersService.getMasters(forceSync);
 
-            // Синхронизация с API
-            const list = await fetchMasters();
-
-            // 1. Обогащаем распарсенными полями и убираем `isSystem`
-            // 2. Сортируем по ключу в алфавитном порядке
+            // Обогащаем распарсенными полями и сортируем
             const processedMasters = list
                 .map(m => ({ ...m, ...parseMasterData(m) }))
                 .sort((a, b) => (a.sortKey || a.name || '').localeCompare(b.sortKey || b.name || '', 'ru', { sensitivity: 'base' }));
-
-            // Сохраняем в IndexedDB
-            await db.masters.clear();
-            await db.masters.bulkPut(processedMasters);
 
             set((s) => ({
                 masters: processedMasters,
                 totalRows: processedMasters.length,
                 totalPages: Math.ceil(processedMasters.length / s.pageSize) || 1,
                 currentPage: 1,
-                lastMastersSync: Date.now(),
+                lastMastersSync: forceSync ? Date.now() : s.lastMastersSync,
             }));
         } catch (err) {
             console.error('Ошибка при загрузке мастеров:', err);
