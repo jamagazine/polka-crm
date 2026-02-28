@@ -16,22 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: 'npm' # Теперь ищем кэш для npm
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm install # Используем стандартный npm
 
       - name: Build
-        run: pnpm run build
+        run: npm run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
