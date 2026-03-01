@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Calendar, Settings, ChevronRight, ChevronLeft, FileText, CaseSensitive, WrapText, Download, RotateCcw, Filter, Columns, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Calendar, Settings, Wrench, ChevronRight, ChevronLeft, FileText, CaseSensitive, WrapText, Download, RotateCcw, Filter, Columns, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useLocation } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
@@ -80,7 +80,7 @@ export function RightPanel() {
 
   const headerSlots = [
     { icon: Calendar, label: 'Календарь', action: () => setActiveTab('calendar'), tab: 'calendar' as RightTab },
-    { icon: Settings, label: 'Инструменты', action: () => setActiveTab('settings'), tab: 'settings' as RightTab },
+    { icon: Wrench, label: 'Инструменты', action: () => setActiveTab('settings'), tab: 'settings' as RightTab },
     { icon: null, label: '', tab: null },
     { icon: null, label: '', tab: null },
     { icon: isCollapsed ? ChevronLeft : ChevronRight, label: 'Свернуть', action: handleToggleContext, tab: null },
@@ -93,7 +93,7 @@ export function RightPanel() {
 
   const navButtons = [
     { icon: Calendar, label: 'Календарь', action: () => expandToTab('calendar') },
-    { icon: Settings, label: 'Инструменты', action: () => expandToTab('settings') },
+    { icon: Wrench, label: 'Инструменты', action: () => expandToTab('settings') },
   ];
 
   const footerCols = Math.max(rightFooterCards.length, 1);
@@ -153,8 +153,10 @@ export function RightPanel() {
     switch (activeTab) {
       case 'calendar':
         return (
-          <div className="p-4 flex flex-col gap-4">
-            <h3 className="font-semibold">Календарь</h3>
+          <div className="px-4 pb-4 flex flex-col gap-5">
+            <div className="flex items-center justify-between h-[50px] border-b border-border/50 -mx-4 px-4 mb-2">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">📅 Календарь</h3>
+            </div>
             <div className="h-48 rounded bg-gray-100 border flex items-center justify-center text-sm text-gray-400"
               style={{ borderColor: CSS.border }}>
               Тут будет календарь
@@ -163,10 +165,10 @@ export function RightPanel() {
         );
       case 'settings':
         return (
-          <div className="p-4 flex flex-col gap-5">
+          <div className="px-4 pb-4 flex flex-col gap-5">
 
             {/* ═══ Заголовок + Система ═══ */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between h-[50px] border-b border-border/50 -mx-4 px-4 mb-2">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">🔧 Инструменты</h3>
               <button
                 onClick={() => setSystemOverlayOpen(true)}
