@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { RefreshCw, Package, ArrowLeft, Folder, FolderCog, ExternalLink, Activity, ChevronRight, FolderTree, CheckSquare, MinusSquare, Square, TriangleAlert, Check } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
@@ -17,6 +17,7 @@ import { cn } from '../../components/ui/utils';
 import { SmartTableHead, SmartTableCell, SmartColHeader, SortIcon, type SmartTableColDef, type SortDir } from '../../components/polka/SmartTable';
 import { formatShortName } from '../../utils/nameFormatter';
 import { exportSmartTable } from '../../utils/exportToExcel';
+import { VirtualSmartTable } from '../../components/ui/VirtualSmartTable';
 
 // ─── Константы КОЛОНОК ────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export function WarehousePage() {
     const FOLDER_COLUMNS: ColDef[] = useMemo(() => [
         {
             id: 'index', label: '#', sortable: false, searchable: false,
-            sticky: true, stickyLeft: 'left-0',
+            sticky: true,
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             freezeEnd: true,
             isDragDisabled: true,
@@ -104,7 +105,7 @@ export function WarehousePage() {
         },
         {
             id: 'type', label: <Folder className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            responsiveSticky: true, stickyLeft: 'md:left-[50px]',
+            sticky: warehousePrefs.warehouseView !== 'products',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             isDragDisabled: true,
@@ -112,7 +113,7 @@ export function WarehousePage() {
         },
         {
             id: 'status', label: <Activity className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            responsiveSticky: true, stickyLeft: 'md:left-[100px]',
+            sticky: warehousePrefs.warehouseView !== 'products',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             isDragDisabled: true,
@@ -120,9 +121,9 @@ export function WarehousePage() {
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
-            responsiveSticky: true, stickyLeft: 'md:left-[150px]',
-            width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
-            minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
+            sticky: warehousePrefs.warehouseView !== 'products',
+            width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[200px]' : 'w-[350px]'),
+            minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[200px]' : 'min-w-[350px]'),
             freezeEnd: true,
             isDragDisabled: true,
             tooltip: 'Наименование позиции'
@@ -139,7 +140,7 @@ export function WarehousePage() {
     const PRODUCT_COLUMNS: ColDef[] = useMemo(() => [
         {
             id: 'index', label: '#', sortable: false, searchable: false,
-            sticky: true, stickyLeft: 'left-0',
+            sticky: true,
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             freezeEnd: true,
             isDragDisabled: true,
@@ -147,7 +148,7 @@ export function WarehousePage() {
         },
         {
             id: 'type', label: <Package className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            responsiveSticky: true, stickyLeft: 'md:left-[50px]',
+            sticky: warehousePrefs.warehouseView !== 'products',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             isDragDisabled: true,
@@ -155,7 +156,7 @@ export function WarehousePage() {
         },
         {
             id: 'status', label: <span title="Движение" className="flex items-center justify-center w-full h-full"><Activity className="w-4 h-4 text-muted-foreground" /></span>, sortable: true, searchable: false,
-            responsiveSticky: true, stickyLeft: 'md:left-[100px]',
+            sticky: warehousePrefs.warehouseView !== 'products',
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             isDragDisabled: true,
@@ -163,9 +164,9 @@ export function WarehousePage() {
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
-            responsiveSticky: true, stickyLeft: 'md:left-[150px]',
-            width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
-            minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
+            sticky: warehousePrefs.warehouseView !== 'products',
+            width: showWarehouseRawNames ? 'w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'w-[200px]' : 'w-[350px]'),
+            minWidth: showWarehouseRawNames ? 'min-w-[500px]' : (!showWarehouseRawNames && showShortNames ? 'min-w-[200px]' : 'min-w-[350px]'),
             freezeEnd: true,
             isDragDisabled: true,
             tooltip: 'Наименование позиции'
@@ -232,7 +233,178 @@ export function WarehousePage() {
     const [dragOverColId, setDragOverColId] = useState<string | null>(null);
     const [dropPosition, setDropPosition] = useState<'left' | 'right' | null>(null);
 
+    // ── Логика рендеринга ячеек (вынос из VirtualSmartTable) ──
+    const getCellValue = useCallback((item: WarehouseItem, colId: string): any => {
+        switch (colId) {
+            case 'type': {
+                if (item.isFolder) {
+                    if (item.isSystem) {
+                        return (
+                            <div className="relative inline-flex items-center justify-center" title="Системная папка">
+                                <FolderCog className="w-4 h-4 text-slate-400" />
+                                {item.subFoldersCount ? (
+                                    <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
+                                        {item.subFoldersCount}
+                                    </span>
+                                ) : null}
+                            </div>
+                        );
+                    } else if (item.hasSubfolders) {
+                        return (
+                            <div className="relative inline-flex items-center justify-center" title={`Вложенных папок: ${item.subFoldersCount}`}>
+                                <FolderTree className="w-4 h-4 text-indigo-500 fill-indigo-50" />
+                                {item.subFoldersCount ? (
+                                    <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
+                                        {item.subFoldersCount}
+                                    </span>
+                                ) : null}
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <div className="relative inline-flex items-center justify-center">
+                                <Folder className="w-4 h-4 text-blue-500 fill-blue-50" />
+                            </div>
+                        );
+                    }
+                } else if (item.pic && item.pic.length > 0) {
+                    return (
+                        <img
+                            src={item.pic[0]}
+                            alt={item.name}
+                            className={cn(
+                                "object-cover rounded-md border bg-white",
+                                wordWrap ? "w-12 h-12" : "w-8 h-8"
+                            )}
+                        />
+                    );
+                } else {
+                    return <Package className="w-4 h-4 text-slate-500" />;
+                }
+            }
+
+            case 'status': {
+                const hasMinuses = isProductView && !item.isFolder
+                    ? item.stock < 0
+                    : (item.minusesCount ? item.minusesCount > 0 : false);
+                const purchase = item.purchase || item.cost || item.purchasePrice || 0;
+                const price = item.price || 0;
+                const hasMoneyIssues = isProductView && !item.isFolder
+                    ? (purchase <= 0 || price <= 0 || price <= purchase)
+                    : (item.moneyIssuesCount ? item.moneyIssuesCount > 0 : false);
+                const hasZeroes = isProductView && !item.isFolder
+                    ? item.stock === 0
+                    : (item.zeroStockCount ? item.zeroStockCount > 0 : false);
+
+                const errorsCount = (hasMinuses ? 1 : 0) + (hasMoneyIssues ? 1 : 0) + (hasZeroes ? 1 : 0);
+
+                if (errorsCount === 0 && !item.isFolder) {
+                    return <span title="Всё в порядке" className="cursor-help inline-flex items-center justify-center"><Check className="w-3.5 h-3.5 text-green-500/40" /></span>;
+                }
+                if (errorsCount > 1) {
+                    const errorMessages: string[] = [];
+                    if (hasMinuses) errorMessages.push("Отрицательный остаток");
+                    if (hasMoneyIssues) errorMessages.push("Проблема с ценой/закупом");
+                    if (hasZeroes) errorMessages.push("Нулевой остаток");
+                    return <span title={`Множественные проблемы:\n- ${errorMessages.join('\n- ')}`} className="cursor-help inline-flex items-center justify-center text-sm"><TriangleAlert className="w-4 h-4 text-red-500" /></span>;
+                }
+                if (hasMinuses) return <span className="text-base leading-none cursor-help inline-flex items-center justify-center" title="Отрицательный остаток">📉</span>;
+                if (hasMoneyIssues) return <span className="text-base leading-none cursor-help inline-flex items-center justify-center" title="Проблема с ценой/закупом">💸</span>;
+                if (hasZeroes) return <span className="text-base leading-none cursor-help inline-flex items-center justify-center" title="Нулевой остаток">📦</span>;
+                return null;
+            }
+
+            case 'name': {
+                const rawName = getDisplayName(item);
+                const cleanName = rawName.replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').replace(/`.+?`/g, '').replace(/\|[^|]+\|/g, '').trim() || rawName;
+                let displayName = item.isFolder ? (showWarehouseRawNames ? rawName : cleanName) : rawName;
+                if (!showWarehouseRawNames && showShortNames && item.isFolder) {
+                    displayName = formatShortName(displayName);
+                }
+                return (
+                    <div className="flex items-center gap-2 pr-2 min-w-0 justify-between w-full text-sm">
+                        <span className={cn("flex-1 min-w-0", item.isFolder && "text-blue-600 font-medium")}>
+                            {displayName}
+                        </span>
+                        {item.isFolder && <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-50 text-blue-500 transition-transform group-hover:translate-x-1" />}
+                    </div>
+                );
+            }
+
+            case 'skuCount': return (
+                <span className="text-sm text-muted-foreground">
+                    {item.isFolder ? (item.skuCount ?? 0) : '—'}
+                </span>
+            );
+
+            case 'zeroStockCount': return item.zeroStockCount ? (
+                <span className="text-sm text-gray-400 cursor-help" title="Товары с нулевым остатком">{item.zeroStockCount}</span>
+            ) : null;
+
+            case 'minusesCount': return item.minusesCount ? (
+                <span className="text-sm text-red-500 cursor-help" title="Товары с отрицательным остатком">{item.minusesCount}</span>
+            ) : null;
+
+            case 'moneyIssuesCount': return item.moneyIssuesCount ? (
+                <span className="text-sm text-red-500 cursor-help" title="Товары с нулевой ценой или стоимостью закупки">{item.moneyIssuesCount}</span>
+            ) : null;
+
+            case 'stock': {
+                const stockVal = item.isFolder ? (item.totalStock ?? 0) : item.stock;
+                return (
+                    <span className={cn('text-sm', stockVal < 0 && 'text-red-500')}>
+                        {stockVal || 0}
+                    </span>
+                );
+            }
+
+            case 'purchase':
+            case 'price':
+            case 'profit': {
+                if (item.isFolder && colId === 'profit') return '—';
+                let val = 0;
+                if (colId === 'purchase') val = item.purchase || item.cost || item.purchasePrice || 0;
+                else if (colId === 'price') val = item.price || 0;
+                else {
+                    const buy = item.purchase || item.cost || item.purchasePrice || 0;
+                    val = (item.price || 0) - buy;
+                }
+                if (item.isFolder && colId !== 'profit') return '—';
+
+                return (
+                    <span className={cn('text-sm', colId === 'profit' && (val > 0 ? 'text-green-600' : val < 0 ? 'text-red-500' : ''))}>
+                        {new Intl.NumberFormat('ru-RU').format(val)}
+                    </span>
+                );
+            }
+
+            case 'margin':
+            case 'roi': {
+                if (item.isFolder) return '—';
+                const buy = item.purchase || item.cost || item.purchasePrice || 0;
+                const profit = (item.price || 0) - buy;
+                const percent = colId === 'margin'
+                    ? (item.price ? (profit / item.price) * 100 : 0)
+                    : (buy ? (profit / buy) * 100 : 0);
+
+                return (
+                    <span className={cn('text-sm', percent > 0 ? 'text-green-600' : percent < 0 ? 'text-red-500' : '')}>
+                        {percent !== 0 ? `${percent.toFixed(1)}%` : '0%'}
+                    </span>
+                );
+            }
+
+            case 'totalValue': {
+                if (!item.totalValue) return '—';
+                return <span className="text-sm">{new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(item.totalValue).replace('₽', ' ₽')}</span>;
+            }
+
+            default: return null;
+        }
+    }, [showWarehouseRawNames, showShortNames, isProductView, wordWrap]);
+
     // ── Загрузка при маунте ──
+
     useEffect(() => {
         if (catalog.length === 0) {
             loadCatalog();
@@ -570,9 +742,9 @@ export function WarehousePage() {
         if (!item.isFolder || currentFolderId !== null) return item.name;
 
         // Только в корне (когда currentFolderId === null) переименовываем
-        if (item.name === 'Яя `(Архив)') return 'Архивные мастера';
-        if (item.name === 'Яя `(Архив - Пустая)') return 'Пустые склады';
-        if (item.name === 'Яя `(Товары без папки)') return 'Товары без склада';
+        if (item.name.includes('Яя') && item.name.includes('(Архив)')) return 'Архивные мастера';
+        if (item.name.includes('Яя') && item.name.includes('(Архив - Пустая)')) return 'Пустые склады';
+        if (item.name.includes('Яя') && item.name.includes('(Товары без папки)')) return 'Товары без склада';
 
         return item.name;
     };
@@ -624,7 +796,7 @@ export function WarehousePage() {
                     const getTypePriority = (i: typeof a) => {
                         if (i.isFolder) {
                             if (i.isSystem) return 3;
-                            if (i.hasSubfolders) return 1;
+                            if (i.hasSubfolders || (i.subFoldersCount && i.subFoldersCount > 0)) return 1;
                             return 2;
                         }
                         // Для товаров: проверяем наличие фото
@@ -846,7 +1018,7 @@ export function WarehousePage() {
         });
 
     // Логика состояния чекбокса в заголовке
-    const visibleIds = useMemo(() => paginatedData.map(d => d._id), [paginatedData]);
+    const visibleIds = useMemo(() => sortedData.map(d => d._id), [sortedData]);
     const allFilteredIds = useMemo(() => filteredData.map(d => d._id), [filteredData]);
 
     // DND Handlers
@@ -943,416 +1115,65 @@ export function WarehousePage() {
         }
     };
 
-    // ── Фон для sticky-ячеек больше не нужен, он инкапсулирован в SmartTable.
-    const cellBorder = 'border-b border-border';
+    // ── onRowClick callback ──
+    const onRowClick = useCallback((item: any, e: React.MouseEvent) => {
+        if (highlightedIds.has(item._id)) clearHighlightedIds();
+        if (selectedIds.size > 0) {
+            toggleSelection(item._id);
+            return;
+        }
+        if (item.isFolder && viewMode === 'tree') {
+            if (currentFolderId === null) {
+                setWarehouseRootPage(currentPage);
+            }
+            setCurrentFolderId(item._id);
+            setCurrentFolderName(item.name);
+        }
+    }, [highlightedIds, clearHighlightedIds, selectedIds, toggleSelection, viewMode, currentFolderId, currentPage, setWarehouseRootPage]);
+
+    // ── Установка контекста шапки ──
+    useEffect(() => {
+        setHeaderContext(
+            'Склад',
+            null,
+            [{ id: 'refresh', icon: RefreshCw, label: 'Обновить', onClick: () => loadCatalog() }]
+        );
+        return () => clearHeaderContext();
+    }, [setHeaderContext, clearHeaderContext, loadCatalog]);
 
     return (
-        <div className="-mx-6 -my-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] flex flex-col overflow-hidden">
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-                <table className="table-fixed min-w-[800px] w-full caption-bottom text-sm border-separate border-spacing-0">
-                    <TableHeader>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30 h-[50px]">
-                            {activeColumns.map(col => {
-                                const isDraggable = !col.isDragDisabled;
-                                const isDragging = draggedColId === col.id;
-                                const isDragOver = dragOverColId === col.id;
-
-                                return (
-                                    <SmartTableHead
-                                        key={col.id}
-                                        col={col}
-                                        className={cn('px-2 transition-opacity', isDragging ? 'opacity-30' : '')}
-                                        // @ts-ignore
-                                        draggable={isDraggable}
-                                        onDragStart={(e: React.DragEvent) => isDraggable && handleDragStart(e, col.id)}
-                                        onDragOver={(e: React.DragEvent) => isDraggable && handleDragOver(e, col)}
-                                        onDragLeave={isDraggable ? handleDragLeave : undefined}
-                                        onDrop={(e: React.DragEvent) => isDraggable && handleDrop(e, col)}
-                                        onDragEnd={isDraggable ? handleDragEnd : undefined}
-                                        isDropTarget={isDragOver}
-                                        dropPosition={dropPosition as 'left' | 'right' | null}
-                                    >
-                                        {col.id === 'index' ? (
-                                            <button
-                                                onClick={handleHeaderCheckClick}
-                                                className="flex items-center justify-center w-full h-full focus:outline-none transition-colors"
-                                                title="Выбрать строки"
-                                            >
-                                                {isAllFilteredSelected ? (
-                                                    <CheckSquare className="w-4 h-4 text-primary" />
-                                                ) : isAllVisibleSelected ? (
-                                                    <MinusSquare className="w-4 h-4 text-primary" />
-                                                ) : (
-                                                    <Square className="w-4 h-4 text-muted-foreground opacity-30 hover:opacity-100 transition-opacity" />
-                                                )}
-                                            </button>
-                                        ) : (
-                                            <SmartColHeader
-                                                colLabel={col.label}
-                                                colAlign={col.align}
-                                                isSortable={col.sortable}
-                                                isSearchable={col.searchable}
-                                                isDragDisabled={!!col.isDragDisabled}
-                                                isSortActive={sort?.col === col.id}
-                                                sortDir={sort?.col === col.id ? sort.dir : null}
-                                                onSortToggle={() => toggleSort(col.id)}
-                                                isSearching={activeSearchCol === col.id}
-                                                onSearchOpen={() => { setSearchCol(col.id); setSearchTerm(''); }}
-                                                onSearchClose={() => { setSearchCol(null); setSearchTerm(''); }}
-                                                searchProps={{
-                                                    value: activeSearchCol === col.id ? searchTerm : '',
-                                                    onChange: setSearchTerm
-                                                }}
-                                            />
-                                        )}
-                                    </SmartTableHead>
-                                );
-                            })}
-                            {/* Spacer to absorb remaining width */}
-                            <TableHead className="min-w-[50px]" />
-                        </TableRow>
-                    </TableHeader>
-
-                    <TableBody>
-                        {paginatedData.map((item, idx) => {
-                            const isChecked = selectedIds.has(item._id);
-                            const isHighlighted = highlightedIds.has(item._id);
-
-                            return (
-                                <TableRow
-                                    key={item._id}
-                                    id={`row-${item._id}`}
-                                    className={cn(
-                                        'group',
-                                        isHighlighted && 'bg-amber-100/60 animate-pulse',
-                                        isChecked && 'bg-primary/5 hover:bg-primary/10',
-                                        item.isFolder && selectedIds.size === 0 && 'hover:bg-blue-50/50 cursor-pointer',
-                                        selectedIds.size > 0 && 'cursor-pointer hover:bg-muted/50'
-                                    )}
-
-                                    onClick={(e) => {
-                                        if (isHighlighted) clearHighlightedIds();
-                                        if (selectedIds.size > 0) {
-                                            toggleSelection(item._id);
-                                            return;
-                                        }
-
-                                        if (item.isFolder && viewMode === 'tree') {
-                                            if (currentFolderId === null) {
-                                                setWarehouseRootPage(currentPage);
-                                            }
-                                            setCurrentFolderId(item._id);
-                                            setCurrentFolderName(item.name);
-                                        }
-                                    }}
-                                    data-state={isChecked ? 'selected' : undefined}
-                                >
-                                    {activeColumns.map(col => {
-                                        switch (col.id) {
-                                            case 'index': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-1', cellBorder)}>
-                                                    <div className="relative flex items-center justify-center h-5">
-                                                        <span className={cn(
-                                                            'text-xs text-muted-foreground select-none transition-opacity duration-100',
-                                                            isChecked ? 'opacity-0' : 'opacity-100 group-hover:opacity-0',
-                                                        )}>
-                                                            {(currentPage - 1) * pageSize + idx + 1}
-                                                        </span>
-                                                        <span
-                                                            className={cn(
-                                                                'absolute inset-0 flex items-center justify-center transition-opacity duration-100',
-                                                                isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-                                                            )}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <Checkbox
-                                                                checked={isChecked}
-                                                                onCheckedChange={() => toggleSelection(item._id)}
-                                                                aria-label={`Выбрать строку ${idx + 1}`}
-                                                            />
-                                                        </span>
-                                                    </div>
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'type': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-1', cellBorder)}>
-                                                    <div className="flex items-center justify-center relative w-full h-full">
-                                                        {item.isFolder ? (
-                                                            item.isSystem ? (
-                                                                <div className="relative inline-flex items-center justify-center" title="Системная папка">
-                                                                    <FolderCog className="w-4 h-4 text-slate-400" />
-                                                                    {item.subFoldersCount ? (
-                                                                        <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
-                                                                            {item.subFoldersCount}
-                                                                        </span>
-                                                                    ) : null}
-                                                                </div>
-                                                            ) : item.hasSubfolders ? (
-                                                                <div className="relative inline-flex items-center justify-center" title={`Вложенных папок: ${item.subFoldersCount}`}>
-                                                                    <FolderTree className="w-4 h-4 text-indigo-500 fill-indigo-50" />
-                                                                    {item.subFoldersCount ? (
-                                                                        <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
-                                                                            {item.subFoldersCount}
-                                                                        </span>
-                                                                    ) : null}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="relative inline-flex items-center justify-center">
-                                                                    <Folder className="w-4 h-4 text-blue-500 fill-blue-50" />
-                                                                </div>
-                                                            )
-                                                        ) : (item.pic && item.pic.length > 0) ? (
-                                                            <img
-                                                                src={item.pic[0]}
-                                                                alt={item.name}
-                                                                className={cn(
-                                                                    "object-cover rounded-md border bg-white",
-                                                                    wordWrap ? "w-12 h-12" : "w-8 h-8"
-                                                                )}
-                                                            />
-                                                        ) : (
-                                                            <Package className="w-4 h-4 text-slate-500" />
-                                                        )}
-                                                    </div>
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'status': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-1', cellBorder)}>
-                                                    <div className="flex flex-row flex-wrap items-center justify-center gap-1 w-full h-full">
-                                                        {isProductView ? (() => {
-                                                            if (item.isFolder) return null;
-                                                            const purchase = item.purchase || item.cost || item.purchasePrice || 0;
-                                                            const price = item.price || 0;
-
-                                                            const hasMinuses = item.stock < 0;
-                                                            const hasMoneyIssues = purchase <= 0 || price <= 0 || price <= purchase;
-                                                            const hasZeroes = item.stock === 0;
-
-                                                            const errorsCount = (hasMinuses ? 1 : 0) + (hasMoneyIssues ? 1 : 0) + (hasZeroes ? 1 : 0);
-
-                                                            if (errorsCount > 1) {
-                                                                const errorMessages = [];
-                                                                if (hasMinuses) errorMessages.push("Отрицательный остаток");
-                                                                if (hasMoneyIssues) errorMessages.push("Ошибка в цене или закупе (убыток)");
-                                                                if (hasZeroes) errorMessages.push("Товар закончился");
-                                                                const complexTitle = `Множественные проблемы:\n- ${errorMessages.join('\n- ')}`;
-                                                                return <span title={complexTitle} className="cursor-help inline-flex items-center justify-center"><TriangleAlert className="w-4 h-4 text-red-500" /></span>;
-                                                            } else if (hasMinuses) {
-                                                                return <span title="Отрицательный остаток" className="text-base leading-none cursor-help inline-flex items-center justify-center">📉</span>;
-                                                            } else if (hasMoneyIssues) {
-                                                                return <span title="Ошибка в цене или закупе (убыток)" className="text-base leading-none cursor-help inline-flex items-center justify-center">💸</span>;
-                                                            } else if (hasZeroes) {
-                                                                return <span title="Товар закончился" className="text-base leading-none cursor-help inline-flex items-center justify-center">📦</span>;
-                                                            } else {
-                                                                return <span title="Всё в порядке" className="cursor-help inline-flex items-center justify-center"><Check className="w-3.5 h-3.5 text-green-500/40" /></span>;
-                                                            }
-                                                        })() : (() => {
-                                                            const hasMinuses = item.minusesCount ? item.minusesCount > 0 : false;
-                                                            const hasMoneyIssues = item.moneyIssuesCount ? item.moneyIssuesCount > 0 : false;
-                                                            const hasZeroes = item.zeroStockCount ? item.zeroStockCount > 0 : false;
-
-                                                            const errorsCount = (hasMinuses ? 1 : 0) + (hasMoneyIssues ? 1 : 0) + (hasZeroes ? 1 : 0);
-
-                                                            if (errorsCount === 0) return <span title="Проблем не обнаружено" className="cursor-help inline-flex items-center justify-center"><Check className="w-3.5 h-3.5 text-green-500/40" /></span>;
-                                                            if (errorsCount > 1) {
-                                                                const errorMessages = [];
-                                                                if (hasMinuses) errorMessages.push("Отрицательный остаток");
-                                                                if (hasMoneyIssues) errorMessages.push("Некорректная цена/закупка");
-                                                                if (hasZeroes) errorMessages.push("Нулевой остаток");
-                                                                const complexTitle = `Множественные проблемы:\n- ${errorMessages.join('\n- ')}`;
-                                                                return <span title={complexTitle} className="cursor-help inline-flex items-center justify-center"><TriangleAlert className="w-4 h-4 text-red-500" /></span>;
-                                                            }
-                                                            if (hasMinuses) return <span className="text-base leading-none cursor-help inline-flex items-center justify-center" title="Проблема: Отрицательный остаток">📉</span>;
-                                                            if (hasMoneyIssues) return <span className="text-base leading-none cursor-help inline-flex items-center justify-center" title="Проблема: Некорректная цена/закупка">💸</span>;
-                                                            if (hasZeroes) return <span className="text-base leading-none cursor-help inline-flex items-center justify-center" title="Инфо: Нулевой остаток">📦</span>;
-
-                                                            return null;
-                                                        })()}
-                                                    </div>
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'name': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 font-medium text-sm', cellBorder, item.isFolder && 'text-blue-600')}>
-                                                    <div className="flex items-center gap-2 pr-2 min-w-0 justify-between w-full">
-                                                        {(() => {
-                                                            const rawName = getDisplayName(item);
-                                                            let cleanName = (rawName || '').replace(/\([^)]+\)/g, '').replace(/`.+?`/g, '').replace(/\|[^|]+\|/g, '').trim() || rawName;
-                                                            let displayName = item.isFolder
-                                                                ? (showWarehouseRawNames ? rawName : cleanName)
-                                                                : rawName; // Товарам всегда оригинальное имя
-
-                                                            const tooltipName = (!wordWrap || !showWarehouseRawNames) ? displayName : undefined;
-
-                                                            if (!showWarehouseRawNames && showShortNames && item.isFolder) {
-                                                                displayName = formatShortName(displayName);
-                                                            }
-
-                                                            return (
-                                                                <span
-                                                                    className={cn(
-                                                                        "flex-1 min-w-0 text-foreground",
-                                                                        wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto custom-scrollbar" : "truncate"
-                                                                    )}
-                                                                    title={tooltipName}
-                                                                >
-                                                                    {displayName}
-                                                                </span>
-                                                            );
-                                                        })()}
-                                                        {item.isFolder && <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-50 text-blue-500 transition-transform group-hover:translate-x-1" />}
-                                                    </div>
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'category': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-muted-foreground', cellBorder)}>
-                                                    <div className={cn(
-                                                        wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto max-w-full block custom-scrollbar" : "truncate max-w-full block"
-                                                    )} title={!wordWrap && item.category ? item.category : undefined}>
-                                                        {item.category || '—'}
-                                                    </div>
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'skuCount': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right flex-1 truncate text-muted-foreground', cellBorder)}>
-                                                    {item.isFolder ? <span className="text-muted-foreground font-normal" title="Уникальных карточек внутри">{item.skuCount ?? 0}</span> : <span className="text-muted-foreground opacity-50">—</span>}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'stock': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right flex-1 truncate text-muted-foreground', cellBorder, (item.isFolder ? (item.totalStock ?? 0) : item.stock) < 0 ? 'text-red-500' : '')}>
-                                                    {item.isFolder ? (
-                                                        <span className={cn((item.totalStock ?? 0) < 0 || (item.minusesCount && item.minusesCount > 0) ? 'text-red-500' : 'text-foreground')} title="Суммарный остаток во всех подпапках">{item.totalStock ?? 0}</span>
-                                                    ) : (
-                                                        <span className={cn(item.stock < 0 || (item.minusesCount && item.minusesCount > 0) ? 'text-red-500' : 'text-foreground')}>{item.stock || 0}</span>
-                                                    )}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'totalValue': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right flex-1 truncate text-muted-foreground', cellBorder)}>
-                                                    {item.totalValue !== undefined && item.totalValue !== null && item.totalValue !== 0 ? (
-                                                        new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(item.totalValue).replace('₽', ' ₽')
-                                                    ) : '—'}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'zeroStockCount': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-1 font-medium', cellBorder)}>
-                                                    {item.zeroStockCount ? <span className="text-gray-400 cursor-help" title="Товары с нулевым остатком">{item.zeroStockCount}</span> : null}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'minusesCount': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-1 font-medium', cellBorder)}>
-                                                    {item.minusesCount ? <span className="text-red-500 cursor-help" title="Товары с отрицательным остатком">{item.minusesCount}</span> : null}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'moneyIssuesCount': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-1 font-medium', cellBorder)}>
-                                                    {item.moneyIssuesCount ? <span className="text-red-500 cursor-help" title="Товары с нулевой ценой или стоимостью закупки">{item.moneyIssuesCount}</span> : null}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'code': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-muted-foreground tabular-nums text-center', cellBorder)}>
-                                                    {item.isFolder ? '—' : (item.code || '—')}
-                                                </SmartTableCell>
-                                            );
-                                            case 'article': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-foreground text-center', cellBorder)}>
-                                                    {item.isFolder ? '—' : (item.article || '—')}
-                                                </SmartTableCell>
-                                            );
-                                            case 'barcode': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-muted-foreground tabular-nums text-center', cellBorder)}>
-                                                    {item.isFolder ? '—' : (item.barcode || '—')}
-                                                </SmartTableCell>
-                                            );
-
-                                            case 'purchase': {
-                                                const purchase = item.purchase || item.cost || item.purchasePrice || 0;
-                                                return (
-                                                    <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right text-muted-foreground', cellBorder)}>
-                                                        {item.isFolder ? '—' : (purchase > 0 ? new Intl.NumberFormat('ru-RU').format(purchase) : '0')}
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            case 'price': {
-                                                const price = item.price || 0;
-                                                return (
-                                                    <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right text-foreground font-medium', cellBorder)}>
-                                                        {item.isFolder ? '—' : (price > 0 ? new Intl.NumberFormat('ru-RU').format(price) : '0')}
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            case 'profit': {
-                                                if (item.isFolder) return <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right text-muted-foreground', cellBorder)}>—</SmartTableCell>;
-                                                const purchase = item.purchase || item.cost || item.purchasePrice || 0;
-                                                const profit = (item.price || 0) - purchase;
-                                                return (
-                                                    <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right whitespace-nowrap', cellBorder, profit > 0 ? 'text-green-600' : profit <= 0 ? 'text-red-500' : 'text-muted-foreground')}>
-                                                        {new Intl.NumberFormat('ru-RU').format(profit)}
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            case 'margin': {
-                                                if (item.isFolder) return <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right text-muted-foreground', cellBorder)}>—</SmartTableCell>;
-                                                const purchase = item.purchase || item.cost || item.purchasePrice || 0;
-                                                const profit = (item.price || 0) - purchase;
-                                                const margin = item.price ? (profit / item.price) * 100 : 0;
-                                                return (
-                                                    <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right whitespace-nowrap', cellBorder, margin > 0 ? 'text-green-600' : margin <= 0 ? 'text-red-500' : 'text-muted-foreground')}>
-                                                        {margin !== 0 ? `${margin.toFixed(1)}%` : '0%'}
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            case 'roi': {
-                                                if (item.isFolder) return <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right text-muted-foreground', cellBorder)}>—</SmartTableCell>;
-                                                const purchase = item.purchase || item.cost || item.purchasePrice || 0;
-                                                const profit = (item.price || 0) - purchase;
-                                                const roi = purchase ? (profit / purchase) * 100 : 0;
-                                                return (
-                                                    <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right whitespace-nowrap', cellBorder, roi > 0 ? 'text-green-600' : roi <= 0 ? 'text-red-500' : 'text-muted-foreground')}>
-                                                        {roi !== 0 ? `${roi.toFixed(1)}%` : '0%'}
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            case 'sales': return (
-                                                <SmartTableCell key={col.id} col={col} className={cn('px-2 text-sm text-right text-muted-foreground', cellBorder)}>
-                                                    —
-                                                </SmartTableCell>
-                                            );
-
-                                            default: return null;
-                                        }
-                                    })}
-
-                                    {/* Spacer */}
-                                    <TableCell className={cellBorder} />
-                                </TableRow>
-                            );
-                        })}
-                        {paginatedData.length === 0 && (
-                            <TableRow>
-                                <TableCell colSpan={activeColumns.length + 1} className="h-24 text-center">
-                                    Нет данных для отображения.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </table>
-            </div>
-        </div >
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+            <VirtualSmartTable
+                data={paginatedData}
+                activeColumns={activeColumns}
+                sort={sort}
+                toggleSort={toggleSort}
+                activeSearchCol={activeSearchCol}
+                searchTerm={searchTerm}
+                setSearchCol={setSearchCol}
+                setSearchTerm={setSearchTerm}
+                selectedIds={selectedIds}
+                toggleSelection={toggleSelection}
+                isAllVisibleSelected={isAllVisibleSelected}
+                isAllFilteredSelected={isAllFilteredSelected}
+                handleHeaderCheckClick={handleHeaderCheckClick}
+                highlightedIds={highlightedIds}
+                clearHighlightedIds={clearHighlightedIds}
+                wordWrap={!!wordWrap}
+                draggedColId={draggedColId}
+                handleDragStart={handleDragStart}
+                handleDragOver={handleDragOver}
+                handleDragLeave={handleDragLeave}
+                handleDrop={handleDrop}
+                handleDragEnd={handleDragEnd}
+                dragOverColId={dragOverColId}
+                dropPosition={dropPosition}
+                onRowClick={onRowClick}
+                getDisplayName={getDisplayName}
+                formatShortName={formatShortName}
+                getCellValue={getCellValue}
+                startIndex={(currentPage - 1) * pageSize}
+            />
+        </div>
     );
 }

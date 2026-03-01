@@ -1,19 +1,13 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { RefreshCw, Activity, User, Building2, UserMinus, Loader2, CheckSquare, MinusSquare, Square, Clock } from 'lucide-react';
+import { RefreshCw, Activity, User, Building2, UserMinus, CheckSquare, MinusSquare, Square, Clock } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
 import { useDebounce } from '../../hooks/useDebounce';
 import { CSS } from '../../utils/cssVars';
-import {
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '../../components/ui/table';
 import { Checkbox } from '../../components/ui/checkbox';
 import { cn } from '../../components/ui/utils';
-import { SmartTableHead, SmartTableCell, SmartColHeader, SortIcon, type SmartTableColDef, type SortDir } from '../../components/polka/SmartTable';
+import { type SmartTableColDef, type SortDir } from '../../components/polka/SmartTable';
+import { VirtualSmartTable } from '../../components/ui/VirtualSmartTable';
 import { type Master } from '../../api/client';
 import { smartDateMatch } from '../../utils/smartDateMatch';
 import { formatShortName } from '../../utils/nameFormatter';
@@ -140,61 +134,10 @@ function formatDate(iso?: string | number): string {
     }
 }
 
-function getCellValue(row: Master, colId: ColId): string {
-    switch (colId) {
-        case 'index': return '';
-        case 'type': return row.type ?? '—';
-        case 'status': return row.created ?? '—';
-        case 'name': return row.name ?? '—';
-        case 'category': return row.parsedCategory || '—';
-        case 'phone': return row.parsedPhone || '—';
-        case 'payment': return row.parsedPaymentMethod || '—';
-        case 'bank': return row.parsedBanks || '—';
-        case 'city': return row.parsedCity || row.address?.actual || '—';
-        case 'date': return formatDate(row.created);
-        case 'notes': return row.parsedNotes || '—';
-        default: return '—';
-    }
-}
+// getCellValue moved inside MastersPage component
+
 
 // Removed duplicate SortIcon and SmartColHeader
-
-// ─── Скелетон загрузки ────────────────────────────────────────────────────────
-
-function SkeletonRow({ idx }: { idx: number }) {
-    const cellBorder = 'border-b border-border';
-
-    return (
-        <TableRow key={`skel-${idx}`} className="animate-pulse">
-            {/* # */}
-            <TableCell className={cn('px-1', cellBorder)}>
-                <div className="h-3 w-4 mx-auto rounded bg-muted" />
-            </TableCell>
-            {/* Тип */}
-            <TableCell className={cn('px-1', cellBorder)}>
-                <div className="h-4 w-4 mx-auto rounded bg-muted" />
-            </TableCell>
-            {/* Статус/Стаж */}
-            <TableCell className={cn('px-1', cellBorder)}>
-                <div className="h-5 w-5 mx-auto rounded-full bg-muted" />
-            </TableCell>
-            {/* Имя */}
-            <TableCell className={cn('px-2', cellBorder)}>
-                <div className="h-3 w-32 rounded bg-muted" />
-            </TableCell>
-            {/* Остальные */}
-            {Array.from({ length: 7 }).map((_, i) => (
-                <TableCell key={`skel-col-${i}`} className={cn('px-2', cellBorder)}>
-                    <div className="h-3 rounded bg-muted" style={{ width: `${50 + (i * 13) % 40}%` }} />
-                </TableCell>
-            ))}
-            {/* Spacer */}
-            <TableCell className={cellBorder} />
-        </TableRow>
-    );
-}
-
-
 
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
@@ -203,7 +146,7 @@ export function MastersPage() {
         setRightFooterCards, activeRightCardId, setActiveRightCard, setMastersFilter,
         setHeaderContext, clearHeaderContext,
         setTotalPages, setTotalRows,
-        masters, isLoading, loadMasters,
+        masters, loadMasters,
         currentPage, setCurrentPage, pageSize,
         mastersFilter, mastersPrefs,
         selectedIds, toggleSelection, clearSelection, setSelection, setAllFilteredIds,
@@ -221,7 +164,6 @@ export function MastersPage() {
         setTotalPages: state.setTotalPages,
         setTotalRows: state.setTotalRows,
         masters: state.masters,
-        isLoading: state.isLoading,
         loadMasters: state.loadMasters,
         currentPage: state.currentPage,
         setCurrentPage: state.setCurrentPage,
@@ -245,10 +187,70 @@ export function MastersPage() {
 
     const { showRawNames, showShortNames, wordWrap } = mastersPrefs;
 
+    const getCellValue = (row: Master, colId: string): any => {
+        switch (colId) {
+            case 'type': {
+                if (isSystemContact(row.name)) {
+                    return (
+                        <div className="flex items-center justify-center w-full">
+                            <Building2 className="w-4 h-4 text-amber-500" />
+                        </div>
+                    );
+                } else if (row.isArchived || (row as any).dateOfResignation) {
+                    return (
+                        <div className="flex items-center justify-center w-full">
+                            <div className="relative inline-flex items-center justify-center">
+                                <UserMinus className="w-4 h-4 text-muted-foreground" />
+                                <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
+                                    1
+                                </span>
+                            </div>
+                        </div>
+                    );
+                } else {
+                    return (
+                        <div className="flex items-center justify-center w-full">
+                            <User className="w-4 h-4 text-blue-500" />
+                        </div>
+                    );
+                }
+            }
+            case 'status': {
+                const seniority = getSeniority(row);
+                if (seniority) {
+                    return (
+                        <div className="flex items-center justify-center w-full cursor-help z-50" title={seniority.exactText}>
+                            <span className="text-base leading-none">{seniority.icon}</span>
+                        </div>
+                    );
+                }
+                return '—';
+            }
+            case 'name':
+                return (showRawNames ? row.name : (row.cleanName || row.name)) || '—';
+            case 'category':
+                return (row as any).category || row.parsedCategory || '—';
+            case 'phone': {
+                const phone = row.parsedPhone || '—';
+                if (phone.includes('!!!')) {
+                    return <span className="text-red-500 font-bold">{phone}</span>;
+                }
+                return phone;
+            }
+            case 'payment': return row.parsedPaymentMethod || '—';
+            case 'bank': return row.parsedBanks || '—';
+            case 'city': return row.parsedCity || row.address?.actual || '—';
+            case 'date': return formatDate(row.created);
+            case 'notes': return row.parsedNotes || '—';
+            default: return null;
+        }
+    };
+
+
     const baseColumns: ColDef[] = useMemo(() => [
         {
             id: 'index', label: '#', sortable: false, searchable: false,
-            sticky: true, stickyLeft: 'left-0',
+            sticky: true,
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             freezeEnd: true,
@@ -257,7 +259,7 @@ export function MastersPage() {
         },
         {
             id: 'type', label: <User className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            responsiveSticky: true, stickyLeft: 'md:left-[50px]',
+            sticky: true,
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             isDragDisabled: true,
@@ -265,7 +267,7 @@ export function MastersPage() {
         },
         {
             id: 'status', label: <Clock className="w-4 h-4 mx-auto text-muted-foreground" />, sortable: true, searchable: false,
-            responsiveSticky: true, stickyLeft: 'md:left-[100px]',
+            sticky: true,
             width: 'w-[50px]', minWidth: 'min-w-[50px]',
             align: 'center',
             isDragDisabled: true,
@@ -273,7 +275,7 @@ export function MastersPage() {
         },
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
-            responsiveSticky: true, stickyLeft: 'md:left-[150px]',
+            sticky: true,
             width: showRawNames ? 'w-[500px]' : (!showRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
             minWidth: showRawNames ? 'min-w-[500px]' : (!showRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
             freezeEnd: true,
@@ -562,12 +564,21 @@ export function MastersPage() {
         const avRaw = getCellValue(a, sort.col);
         const bvRaw = getCellValue(b, sort.col);
 
-        // Special handling for numerical sorting of 'status' (which returns 'created' timestamp)
+        // Special handling for numerical sorting of 'status' (which represents seniority/created date)
         if (sort.col === 'status') {
-            const av = Number(avRaw);
-            const bv = Number(bvRaw);
-            const aEmpty = isNaN(av);
-            const bEmpty = isNaN(bv);
+            const avRawStatus = a.created;
+            const bvRawStatus = b.created;
+
+            let av = Number(avRawStatus);
+            if (isNaN(av) && typeof avRawStatus === 'string') av = new Date(avRawStatus).getTime();
+            else if (av > 0 && av < 10000000000) av = av * 1000;
+
+            let bv = Number(bvRawStatus);
+            if (isNaN(bv) && typeof bvRawStatus === 'string') bv = new Date(bvRawStatus).getTime();
+            else if (bv > 0 && bv < 10000000000) bv = bv * 1000;
+
+            const aEmpty = !av || isNaN(av);
+            const bEmpty = !bv || isNaN(bv);
 
             if (aEmpty && bEmpty) return 0;
             if (aEmpty) return 1;
@@ -682,288 +693,52 @@ export function MastersPage() {
 
     // ── Фон для sticky-ячеек больше не нужен, он инкапсулирован в SmartTable.
 
+    // ── Установка контекста шапки ──
+    useEffect(() => {
+        setHeaderContext(
+            'Мастера',
+            null,
+            [{ id: 'refresh', icon: RefreshCw, label: 'Обновить', onClick: () => loadMasters() }]
+        );
+        return () => clearHeaderContext();
+    }, [setHeaderContext, clearHeaderContext, loadMasters]);
+
     return (
-        <div className="-mx-6 -my-6 w-[calc(100%+3rem)] h-[calc(100%+3rem)] flex flex-col overflow-hidden">
-
-            {/*
-             * Единственный scroll-контейнер.
-             */}
-            <div className="flex-1 overflow-x-auto overflow-y-auto">
-                <table className="table-fixed min-w-[800px] w-full caption-bottom text-sm border-separate border-spacing-0">
-
-                    {/* ══ Шапка ══ */}
-                    <TableHeader>
-                        <TableRow className="bg-muted/30 hover:bg-muted/30 h-[50px]">
-                            {COLUMNS.map(col => {
-                                const isDraggable = !col.isDragDisabled;
-                                const isDragging = draggedColId === col.id;
-                                const isDragOver = dragOverColId === col.id;
-
-                                return (
-                                    <SmartTableHead
-                                        key={col.id}
-                                        col={col}
-                                        className={cn('px-2 transition-opacity', isDragging ? 'opacity-30' : '')}
-                                        // @ts-ignore
-                                        draggable={isDraggable}
-                                        onDragStart={(e: React.DragEvent) => isDraggable && handleDragStart(e, col.id)}
-                                        onDragOver={(e: React.DragEvent) => isDraggable && handleDragOver(e, col)}
-                                        onDragLeave={isDraggable ? handleDragLeave : undefined}
-                                        onDrop={(e: React.DragEvent) => isDraggable && handleDrop(e, col)}
-                                        onDragEnd={isDraggable ? handleDragEnd : undefined}
-                                        isDropTarget={isDragOver}
-                                        dropPosition={dropPosition as 'left' | 'right' | null}
-                                    >
-                                        {col.id === 'index' ? (
-                                            <button
-                                                onClick={handleHeaderCheckClick}
-                                                className="flex items-center justify-center w-full h-full focus:outline-none transition-colors"
-                                                title="Выбрать строки"
-                                            >
-                                                {isAllFilteredSelected ? (
-                                                    <CheckSquare className="w-4 h-4 text-primary" />
-                                                ) : isAllVisibleSelected ? (
-                                                    <MinusSquare className="w-4 h-4 text-primary" />
-                                                ) : (
-                                                    <Square className="w-4 h-4 text-muted-foreground opacity-30 hover:opacity-100 transition-opacity" />
-                                                )}
-                                            </button>
-                                        ) : col.id === 'status' ? (
-                                            <button
-                                                onClick={() => toggleSort('status')}
-                                                className="flex items-center justify-center gap-1 w-full cursor-pointer hover:text-foreground transition-colors"
-                                                title="Сортировать по типу"
-                                            >
-                                                <Activity className="w-3.5 h-3.5 text-muted-foreground" />
-                                                <SortIcon
-                                                    active={sort?.col === 'status'}
-                                                    dir={sort?.col === 'status' ? sort.dir : null}
-                                                />
-                                            </button>
-                                        ) : (
-                                            <SmartColHeader
-                                                colLabel={col.label}
-                                                colAlign={col.align}
-                                                isSortable={col.sortable}
-                                                isSearchable={col.searchable}
-                                                isDragDisabled={!!col.isDragDisabled}
-                                                isSortActive={sort?.col === col.id}
-                                                sortDir={sort?.col === col.id ? sort.dir : null}
-                                                onSortToggle={() => toggleSort(col.id)}
-                                                isSearching={activeSearchCol === col.id}
-                                                onSearchOpen={() => { setSearchCol(col.id); setSearchTerm(''); }}
-                                                onSearchClose={() => { setSearchCol(null); setSearchTerm(''); }}
-                                                searchProps={{
-                                                    value: activeSearchCol === col.id ? searchTerm : '',
-                                                    onChange: setSearchTerm
-                                                }}
-                                            />
-                                        )}
-                                    </SmartTableHead>
-                                );
-                            })}
-                            {/* Spacer to absorb remaining width */}
-                            <TableHead className="min-w-[50px]" />
-                        </TableRow>
-                    </TableHeader>
-
-                    {/* ══ Тело ══ */}
-                    <TableBody>
-                        {isLoading
-                            ? Array.from({ length: 8 }, (_, i) => <SkeletonRow key={i} idx={i} />)
-                            : paginatedMasters.map((master, idx) => {
-                                // Глобальный номер строки с учётом текущей страницы
-                                const globalIdx = pageStart + idx;
-                                const isChecked = selectedIds.has(master._id);
-                                const isHighlighted = highlightedIds.has(master._id);
-
-                                return (
-                                    <TableRow
-                                        key={master._id}
-                                        id={`row-${master._id}`}
-                                        className={cn(
-                                            'group',
-                                            isHighlighted && 'bg-amber-100/60 animate-pulse',
-                                            isChecked && 'bg-primary/5 hover:bg-primary/10',
-                                            selectedIds.size > 0 && 'cursor-pointer hover:bg-muted/50'
-                                        )}
-                                        onClick={() => {
-                                            if (isHighlighted) clearHighlightedIds();
-                                            if (selectedIds.size > 0) {
-                                                toggleSelection(master._id);
-                                            }
-                                        }}
-                                        data-state={isChecked ? 'selected' : undefined}
-                                    >
-                                        {COLUMNS.map(col => {
-                                            const cellBorder = 'border-b border-border';
-
-                                            // ── Колонка #/Checkbox ──
-                                            if (col.id === 'index') {
-                                                return (
-                                                    <SmartTableCell
-                                                        key="index"
-                                                        col={col}
-                                                        className={cn('px-1', cellBorder)}
-                                                    >
-                                                        <div className="relative flex items-center justify-center h-5">
-                                                            <span className={cn(
-                                                                'text-xs text-muted-foreground select-none transition-opacity duration-100',
-                                                                isChecked ? 'opacity-0' : 'opacity-100 group-hover:opacity-0',
-                                                            )}>
-                                                                {globalIdx + 1}
-                                                            </span>
-                                                            <span
-                                                                className={cn(
-                                                                    'absolute inset-0 flex items-center justify-center transition-opacity duration-100',
-                                                                    isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
-                                                                )}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                            >
-                                                                <Checkbox
-                                                                    checked={isChecked}
-                                                                    onCheckedChange={() => toggleSelection(master._id)}
-                                                                    aria-label={`Выбрать строку ${idx + 1}`}
-                                                                />
-                                                            </span>
-                                                        </div>
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            // ── Колонка Тип (ранее Статус) ──
-                                            if (col.id === 'type') {
-                                                const isSys = isSystemContact(master.name);
-                                                const isArchived = Boolean(master.isArchived); // Здесь берем реальный статус для иконки
-
-                                                let IconComponent = User;
-                                                let iconClass = "w-4 h-4 text-green-500";
-                                                let title = "Действующий мастер";
-
-                                                if (isSys) {
-                                                    IconComponent = Building2;
-                                                    iconClass = "w-4 h-4 text-blue-500";
-                                                    title = "Системный контакт / Поставщик";
-                                                } else if (isArchived) {
-                                                    IconComponent = UserMinus;
-                                                    iconClass = "w-4 h-4 text-muted-foreground opacity-70";
-                                                    title = "Мастер в архиве";
-                                                }
-
-                                                return (
-                                                    <SmartTableCell
-                                                        key="type"
-                                                        col={col}
-                                                        className={cn('px-1', cellBorder)}
-                                                    >
-                                                        <div className="flex items-center justify-center w-full h-full">
-                                                            <div className="relative inline-flex items-center justify-center">
-                                                                <span title={title} className="inline-flex items-center justify-center cursor-help">
-                                                                    <IconComponent className={iconClass} />
-                                                                </span>
-                                                                {isArchived && !isSys && (
-                                                                    <span
-                                                                        className="absolute -bottom-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-secondary text-[9px] font-bold text-secondary-foreground shadow-sm cursor-help"
-                                                                        title="Общий стаж (за вычетом перерывов): В разработке"
-                                                                    >
-                                                                        1
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            // ── Колонка Статус (бывшая Стаж) ──
-                                            if (col.id === 'status') {
-                                                const sen = getSeniority(master);
-                                                return (
-                                                    <SmartTableCell
-                                                        key="status"
-                                                        col={col}
-                                                        className={cn('px-1', cellBorder)}
-                                                    >
-                                                        <div className="flex items-center justify-center w-full h-full text-base leading-none">
-                                                            {sen ? (
-                                                                <span title={sen.exactText} className="cursor-help inline-flex items-center justify-center">
-                                                                    {sen.icon}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-muted-foreground text-sm inline-flex items-center justify-center">—</span>
-                                                            )}
-                                                        </div>
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            // ── Колонка Наименование ──
-                                            if (col.id === 'name') {
-                                                const rawName = master.name ?? '—';
-                                                let displayName = showRawNames
-                                                    ? rawName
-                                                    : (master.cleanName || rawName);
-
-                                                const tooltipName = (!wordWrap || !showRawNames) ? displayName : undefined;
-
-                                                if (!showRawNames && showShortNames) {
-                                                    displayName = formatShortName(displayName);
-                                                }
-
-                                                return (
-                                                    <SmartTableCell
-                                                        key="name"
-                                                        col={col}
-                                                        className={cn('px-2 font-medium text-sm', cellBorder)}
-                                                    >
-                                                        <div className={cn(
-                                                            wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto max-w-full block custom-scrollbar" : "truncate max-w-full block"
-                                                        )} title={tooltipName}>
-                                                            {displayName}
-                                                        </div>
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            // ── Прочие (нестики) ──
-                                            const value = getCellValue(master, col.id);
-
-                                            if (col.id === 'phone' && value.startsWith('!!!')) {
-                                                const phoneText = value.replace(/^!!!\s*/, '');
-                                                return (
-                                                    <SmartTableCell
-                                                        key={col.id}
-                                                        col={col}
-                                                        className={cn('px-2 text-sm font-medium text-red-500', cellBorder)}
-                                                    >
-                                                        {phoneText}
-                                                    </SmartTableCell>
-                                                );
-                                            }
-
-                                            return (
-                                                <SmartTableCell
-                                                    key={col.id}
-                                                    col={col}
-                                                    className={cn('px-2 text-sm text-muted-foreground', cellBorder)}
-                                                >
-                                                    <div className={cn(
-                                                        wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto max-w-full block custom-scrollbar" : "truncate max-w-full block"
-                                                    )} title={!wordWrap && value !== '—' ? value : undefined}>
-                                                        {value !== '—' ? value : ''}
-                                                    </div>
-                                                </SmartTableCell>
-                                            );
-                                        })}
-                                        {/* Spacer */}
-                                        <TableCell className="border-b border-border" />
-                                    </TableRow>
-                                );
-                            })
-                        }
-                    </TableBody>
-                </table>
-            </div>
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* @ts-ignore - TS ColId mismatch */}
+            <VirtualSmartTable
+                data={paginatedMasters}
+                activeColumns={COLUMNS as any}
+                sort={sort as any}
+                toggleSort={toggleSort as any}
+                activeSearchCol={activeSearchCol as any}
+                searchTerm={searchTerm}
+                setSearchCol={setSearchCol as any}
+                setSearchTerm={setSearchTerm}
+                selectedIds={selectedIds}
+                toggleSelection={toggleSelection}
+                isAllVisibleSelected={isAllVisibleSelected}
+                isAllFilteredSelected={isAllFilteredSelected}
+                handleHeaderCheckClick={handleHeaderCheckClick}
+                highlightedIds={highlightedIds}
+                clearHighlightedIds={clearHighlightedIds}
+                wordWrap={wordWrap}
+                draggedColId={draggedColId as any}
+                handleDragStart={handleDragStart as any}
+                handleDragOver={handleDragOver as any}
+                handleDragLeave={handleDragLeave as any}
+                handleDrop={handleDrop as any}
+                handleDragEnd={handleDragEnd as any}
+                dragOverColId={dragOverColId as any}
+                dropPosition={dropPosition as 'left' | 'right' | null}
+                onRowClick={() => { }}
+                getDisplayName={(item) => (showRawNames ? item.name : (item.cleanName || item.name)) || "—"}
+                formatShortName={formatShortName}
+                getCellValue={getCellValue as any}
+                startIndex={(currentPage - 1) * pageSize}
+            />
         </div>
     );
 }
+
+export default MastersPage;

@@ -352,7 +352,7 @@ export function WorkArea() {
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6" style={{ backgroundColor: CSS.bgLight }}>
+      <div className="flex-1 flex flex-col overflow-y-auto" style={{ backgroundColor: CSS.bgLight }}>
         <AppRoutes />
       </div>
 

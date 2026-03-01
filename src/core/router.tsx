@@ -43,7 +43,7 @@ export function getModulesBySection(section: SectionId): ModuleEntry[] {
 
 function Placeholder({ name }: { name: string }) {
     return (
-        <div className="flex items-center justify-center h-full text-gray-400">
+        <div className="flex-1 flex flex-col p-6 items-center justify-center h-full text-gray-400">
             <span>Модуль «{name}» — в разработке</span>
         </div>
     );
