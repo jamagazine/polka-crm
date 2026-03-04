@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { RefreshCw, Activity, User, Building2, UserMinus, CheckSquare, MinusSquare, Square, Clock } from 'lucide-react';
+import { RefreshCw, Activity, User, Building2, UserMinus, CheckSquare, MinusSquare, Square, Clock, ExternalLink } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -192,13 +192,13 @@ export function MastersPage() {
             case 'type': {
                 if (isSystemContact(row.name)) {
                     return (
-                        <div className="flex items-center justify-center w-full">
+                        <div className="flex items-center justify-center w-full" title="Системный контакт">
                             <Building2 className="w-4 h-4 text-amber-500" />
                         </div>
                     );
                 } else if (row.isArchived || (row as any).dateOfResignation) {
                     return (
-                        <div className="flex items-center justify-center w-full">
+                        <div className="flex items-center justify-center w-full" title="В архиве">
                             <div className="relative inline-flex items-center justify-center">
                                 <UserMinus className="w-4 h-4 text-muted-foreground" />
                                 <span className="absolute -bottom-1.5 -right-3 text-[9px] font-medium text-gray-500 leading-none bg-white/90 rounded px-0.5 border border-transparent">
@@ -209,7 +209,7 @@ export function MastersPage() {
                     );
                 } else {
                     return (
-                        <div className="flex items-center justify-center w-full">
+                        <div className="flex items-center justify-center w-full" title="Активный мастер">
                             <User className="w-4 h-4 text-blue-500" />
                         </div>
                     );
@@ -226,8 +226,32 @@ export function MastersPage() {
                 }
                 return '—';
             }
-            case 'name':
-                return <span title={row.name}>{(showRawNames ? row.name : (row.cleanName || row.name)) || '—'}</span>;
+            case 'name': {
+                const displayName = (showRawNames ? row.name : (row.cleanName || row.name)) || '—';
+                return (
+                    <div className="flex items-center gap-2 pr-2 min-w-0 justify-between w-full text-sm">
+                        <span
+                            title={row.name}
+                            className={cn(
+                                "flex-1 min-w-0 text-foreground",
+                                wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto custom-scrollbar" : "truncate"
+                            )}
+                        >
+                            {displayName}
+                        </span>
+                        <a
+                            href={`https://web.cloudshop.ru/card/supplier/m/suppliers/show/${row._id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-shrink-0 opacity-50 hover:opacity-100 text-blue-500 transition-opacity"
+                            title="Открыть карточку мастера в CloudShop"
+                        >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                    </div>
+                );
+            }
             case 'category':
                 return (row as any).category || row.parsedCategory || '—';
             case 'phone': {
@@ -276,8 +300,8 @@ export function MastersPage() {
         {
             id: 'name', label: 'Наименование', sortable: true, searchable: true,
             sticky: true,
-            width: showRawNames ? 'w-[500px]' : (!showRawNames && showShortNames ? 'w-[250px]' : 'w-[385px]'),
-            minWidth: showRawNames ? 'min-w-[500px]' : (!showRawNames && showShortNames ? 'min-w-[250px]' : 'min-w-[385px]'),
+            width: showRawNames ? 'w-[500px]' : (!showRawNames && showShortNames ? 'w-[200px]' : 'w-[350px]'),
+            minWidth: showRawNames ? 'min-w-[500px]' : (!showRawNames && showShortNames ? 'min-w-[200px]' : 'min-w-[350px]'),
             freezeEnd: true,
             isDragDisabled: true,
             tooltip: 'Наименование позиции'
@@ -624,14 +648,74 @@ export function MastersPage() {
 
     useEffect(() => {
         const exportFn = () => {
-            const cols = COLUMNS
-                .filter(c => typeof c.label === 'string')
-                .map(c => ({ id: c.id, label: c.label as string }));
-            exportSmartTable(sortedMastersRef.current, cols, getCellValue as any, selectedIds, '_id', 'Мастера');
+            // Текстовая обёртка — без JSX, только строки и числа
+            const getExportValue = (row: Master, colId: string, rowIndex: number): string | number => {
+                switch (colId) {
+                    case 'index': return rowIndex + 1;
+                    case 'name': return (showRawNames ? row.name : (row.cleanName || row.name)) || '—';
+                    case 'type': {
+                        if (isSystemContact(row.name)) return 'Системный';
+                        if (row.isArchived || (row as any).dateOfResignation) return 'Архив';
+                        return 'Активный';
+                    }
+                    case 'contactTypeText': {
+                        if (isSystemContact(row.name)) return 'Системный';
+                        if (row.isArchived || (row as any).dateOfResignation) return 'Архив';
+                        return 'Активный';
+                    }
+                    case 'status': {
+                        const seniority = getSeniority(row);
+                        return seniority ? seniority.exactText.replace('Стаж: ', '') : '—';
+                    }
+                    case 'category': return (row as any).category || row.parsedCategory || '—';
+                    case 'phone': return row.parsedPhone || '—';
+                    case 'payment': return row.parsedPaymentMethod || '—';
+                    case 'bank': return row.parsedBanks || '—';
+                    case 'city': return row.parsedCity || row.address?.actual || '—';
+                    case 'date': return formatDate(row.created);
+                    case 'notes': return row.parsedNotes || '—';
+                    default: return '';
+                }
+            };
+            const colsList = COLUMNS.map(c => {
+                let textLabel = typeof c.label === 'string' ? c.label : '';
+                if (c.id === 'type') textLabel = 'Тип';
+                if (c.id === 'status') textLabel = 'Стаж';
+                return { id: c.id as string, label: textLabel };
+            });
+
+            // Находим колонку "Тип", вырезаем её откуда бы то ни было, и ставим в самый конец.
+            // Если её вдруг вообще нет в видимых (пользователь скрыл), мы всё равно её добавляем в конец (по требованию).
+            const typeIndex = colsList.findIndex(c => c.id === 'type');
+            if (typeIndex !== -1) {
+                const [typeCol] = colsList.splice(typeIndex, 1);
+                colsList.push(typeCol);
+            } else {
+                colsList.push({ id: 'type', label: 'Тип' });
+            }
+
+            // Переносим "Стаж" за "Дату регистрации" (date)
+            const statusIndex = colsList.findIndex(c => c.id === 'status');
+            if (statusIndex !== -1) {
+                const [statusCol] = colsList.splice(statusIndex, 1);
+                const dateIndex = colsList.findIndex(c => c.id === 'date');
+                if (dateIndex !== -1) {
+                    colsList.splice(dateIndex + 1, 0, statusCol); // Сразу после даты
+                } else {
+                    // Если даты нет в выгрузке, ставим перед Типом (который сейчас последний)
+                    colsList.splice(colsList.length - 1, 0, statusCol);
+                }
+            }
+
+            let filename = 'Мастера';
+            if (activeRightCardId === 'all') filename = 'Все мастера';
+            else if (activeRightCardId === 'archive') filename = 'Архивные мастера';
+
+            exportSmartTable(sortedMastersRef.current, colsList, getExportValue as any, selectedIds, '_id', filename);
         };
         setExportCallback(exportFn);
         return () => setExportCallback(null);
-    }, [COLUMNS, selectedIds, setExportCallback]);
+    }, [COLUMNS, selectedIds, setExportCallback, showRawNames, activeRightCardId]);
 
 
     // ── Автоскролл и переключение страницы для поиска ──
@@ -700,7 +784,8 @@ export function MastersPage() {
         setHeaderContext(
             'Мастера',
             null,
-            [{ id: 'refresh', icon: RefreshCw, label: 'Обновить', onClick: () => loadMasters() }]
+            [{ id: 'refresh', icon: RefreshCw, label: 'Обновить', onClick: () => loadMasters() }],
+            { onClick: () => { }, disabled: true }
         );
         return () => clearHeaderContext();
     }, [setHeaderContext, clearHeaderContext, loadMasters]);
@@ -735,7 +820,6 @@ export function MastersPage() {
                 dropPosition={dropPosition as 'left' | 'right' | null}
                 onRowClick={() => { }}
                 getDisplayName={(item) => (showRawNames ? item.name : (item.cleanName || item.name)) || "—"}
-                formatShortName={formatShortName}
                 getCellValue={getCellValue as any}
                 startIndex={(currentPage - 1) * pageSize}
             />

@@ -15,7 +15,6 @@ import {
 import { Checkbox } from '../../components/ui/checkbox';
 import { cn } from '../../components/ui/utils';
 import { SmartTableHead, SmartTableCell, SmartColHeader, SortIcon, type SmartTableColDef, type SortDir } from '../../components/polka/SmartTable';
-import { formatShortName } from '../../utils/nameFormatter';
 import { exportSmartTable } from '../../utils/exportToExcel';
 import { VirtualSmartTable } from '../../components/ui/VirtualSmartTable';
 
@@ -318,15 +317,33 @@ export function WarehousePage() {
                 const rawName = getDisplayName(item);
                 const cleanName = rawName.replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').replace(/`.+?`/g, '').replace(/\|[^|]+\|/g, '').trim() || rawName;
                 let displayName = item.isFolder ? (showWarehouseRawNames ? rawName : cleanName) : rawName;
-                if (!showWarehouseRawNames && showShortNames && item.isFolder) {
-                    displayName = formatShortName(displayName);
-                }
+                const cloudShopUrl = item.isFolder
+                    ? null
+                    : `https://web.cloudshop.ru/card/catalog/list/m/get/${item._id}`;
                 return (
                     <div className="flex items-center gap-2 pr-2 min-w-0 justify-between w-full text-sm">
-                        <span className={cn("flex-1 min-w-0", item.isFolder && "text-blue-600 font-medium")}>
+                        <span className={cn(
+                            "flex-1 min-w-0",
+                            item.isFolder && "text-blue-600 font-medium",
+                            wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto custom-scrollbar" : "truncate"
+                        )}>
                             {displayName}
                         </span>
-                        {item.isFolder && <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-50 text-blue-500 transition-transform group-hover:translate-x-1" />}
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                            {!item.isFolder && cloudShopUrl && (
+                                <a
+                                    href={cloudShopUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="opacity-50 hover:opacity-100 text-blue-500 transition-opacity"
+                                    title="Открыть карточку товара в CloudShop"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                            )}
+                            {item.isFolder && <ChevronRight className="w-4 h-4 opacity-50 text-blue-500 transition-transform group-hover:translate-x-1" />}
+                        </div>
                     </div>
                 );
             }
@@ -970,15 +987,26 @@ export function WarehousePage() {
     sortedDataRef.current = sortedData;
     const activeColumnsRef = useRef(activeColumns);
     activeColumnsRef.current = activeColumns;
+    const viewModeRef = useRef(viewMode);
+    viewModeRef.current = viewMode;
+    const currentFolderIdRef = useRef(currentFolderId);
+    currentFolderIdRef.current = currentFolderId;
+    const currentFolderNameRef = useRef(currentFolderName);
+    currentFolderNameRef.current = currentFolderName;
 
     useEffect(() => {
         const exportFn = () => {
-            const getValue = (row: any, colId: string) => {
+            const getValue = (row: any, colId: string, rowIndex: number) => {
                 switch (colId) {
-                    case 'name': return getDisplayName(row);
+                    case 'index': return rowIndex + 1;
+                    case 'name': {
+                        const rawName = getDisplayName(row);
+                        const cleanName = rawName.replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').replace(/`.+?`/g, '').replace(/\|[^|]+\|/g, '').trim() || rawName;
+                        return row.isFolder ? (showWarehouseRawNames ? rawName : cleanName) : rawName;
+                    }
                     case 'category': return row.category || '';
                     case 'skuCount': return row.skuCount || 0;
-                    case 'stock': return row.isFolder ? row.totalStock : row.stock;
+                    case 'stock': return row.isFolder ? (row.totalStock ?? 0) : (row.stock ?? 0);
                     case 'totalValue': return row.totalValue || 0;
                     case 'minusesCount': return row.minusesCount || 0;
                     case 'moneyIssuesCount': return row.moneyIssuesCount || 0;
@@ -998,17 +1026,44 @@ export function WarehousePage() {
                         const profit = (row.price || 0) - purchase;
                         return purchase ? ((profit / purchase) * 100).toFixed(1) + '%' : '0%';
                     }
+                    case 'status': {
+                        const purchase = row.purchase || row.cost || row.purchasePrice || 0;
+                        const price = row.price || 0;
+                        const hasMinuses = row.isFolder ? (row.minusesCount > 0) : (row.stock < 0);
+                        const hasMoneyIssues = row.isFolder
+                            ? (row.moneyIssuesCount > 0)
+                            : (purchase <= 0 || price <= 0 || price <= purchase);
+                        const hasZeroes = row.isFolder ? (row.zeroStockCount > 0) : (row.stock === 0);
+                        const errorsCount = (hasMinuses ? 1 : 0) + (hasMoneyIssues ? 1 : 0) + (hasZeroes ? 1 : 0);
+                        if (errorsCount === 0) return 'ОК';
+                        return 'Ошибка';
+                    }
                     default: return '';
                 }
             };
             const cols = activeColumnsRef.current
-                .filter(c => typeof c.label === 'string')
-                .map(c => ({ id: c.id, label: c.label as string }));
-            exportSmartTable(sortedDataRef.current, cols, getValue, selectedIds, '_id', 'Склад');
+                .filter(c => c.id !== 'type' && c.id !== 'status')
+                .map(c => {
+                    return { id: c.id, label: typeof c.label === 'string' ? c.label : '' };
+                });
+
+            // Динамическое имя файла на основе режима просмотра
+            let exportName: string;
+            if (viewModeRef.current === 'flat') {
+                exportName = 'Склад - Все товары';
+            } else if (currentFolderIdRef.current) {
+                const folderName = (currentFolderNameRef.current || 'Папка')
+                    .replace(/\([^)]+\)/g, '').replace(/\[[^\]]+\]/g, '').trim();
+                exportName = `${folderName} - Товары`;
+            } else {
+                exportName = 'Склад - Папки';
+            }
+
+            exportSmartTable(sortedDataRef.current, cols, getValue, selectedIds, '_id', exportName);
         };
         setExportCallback(exportFn);
         return () => setExportCallback(null);
-    }, [selectedIds, setExportCallback]);
+    }, [selectedIds, setExportCallback, viewMode, currentFolderId, showWarehouseRawNames, showShortNames]);
 
     const toggleSort = (colId: ColId) =>
         setSort(prev => {
@@ -1136,7 +1191,8 @@ export function WarehousePage() {
         setHeaderContext(
             'Склад',
             null,
-            [{ id: 'refresh', icon: RefreshCw, label: 'Обновить', onClick: () => loadCatalog() }]
+            [{ id: 'refresh', icon: RefreshCw, label: 'Обновить', onClick: () => loadCatalog() }],
+            { onClick: () => { }, disabled: true }
         );
         return () => clearHeaderContext();
     }, [setHeaderContext, clearHeaderContext, loadCatalog]);
@@ -1170,7 +1226,6 @@ export function WarehousePage() {
                 dropPosition={dropPosition}
                 onRowClick={onRowClick}
                 getDisplayName={getDisplayName}
-                formatShortName={formatShortName}
                 getCellValue={getCellValue}
                 startIndex={(currentPage - 1) * pageSize}
             />

@@ -51,7 +51,6 @@ export interface VirtualSmartTableProps {
     // Navigation
     onRowClick: (item: any, e: React.MouseEvent) => void;
     getDisplayName: (item: any) => string;
-    formatShortName: (name: string) => string;
     getCellValue?: (item: any, colId: string) => any;
     startIndex?: number;
 }
@@ -121,7 +120,6 @@ interface VirtualRowProps {
     onRowClick: (item: any, e: React.MouseEvent) => void;
     onInternalRowClick: (item: any, e: React.MouseEvent) => void;
     getDisplayName: (item: any) => string;
-    formatShortName: (name: string) => string;
     getCellValue?: (item: any, colId: string) => any;
     measureRef: (node: HTMLElement | null) => void;
     style: React.CSSProperties;
@@ -144,7 +142,6 @@ const VirtualRow = React.memo(function VirtualRow({
     onRowClick,
     onInternalRowClick,
     getDisplayName,
-    formatShortName,
     getCellValue,
     measureRef,
     style,
@@ -341,7 +338,6 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
         dropPosition,
         onRowClick,
         getDisplayName,
-        formatShortName,
         getCellValue,
         startIndex = 0,
     } = props;
@@ -502,7 +498,6 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
                                 onRowClick={onRowClick}
                                 onInternalRowClick={handleInternalRowClick}
                                 getDisplayName={getDisplayName}
-                                formatShortName={formatShortName}
                                 getCellValue={getCellValue}
                                 startIndex={startIndex}
                                 measureRef={virtualizer.measureElement}
