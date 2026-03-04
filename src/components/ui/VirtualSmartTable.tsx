@@ -255,10 +255,10 @@ const VirtualRow = React.memo(function VirtualRow({
                     case 'name': {
                         const val = getCellValue?.(item, col.id);
                         return (
-                            <div key={col.id} className={cn(baseCellCn, 'px-2 font-medium text-sm')} style={stickyStyle}>
+                            <div key={col.id} className={cn(baseCellCn, 'px-2 font-medium text-sm')} style={stickyStyle} title={item.name}>
                                 {val || (
                                     <div className="flex items-center gap-2 pr-2 min-w-0 justify-between w-full">
-                                        <span className={cn("flex-1 min-w-0 text-foreground", wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto custom-scrollbar" : "truncate")}>
+                                        <span className={cn("flex-1 min-w-0 text-foreground", wordWrap ? "whitespace-pre-wrap break-words leading-tight py-1 max-h-[4.5rem] overflow-y-auto custom-scrollbar" : "truncate")} title={item.name}>
                                             {getDisplayName(item)}
                                         </span>
                                         {item.isFolder && <ChevronRight className="w-4 h-4 flex-shrink-0 opacity-50 text-blue-500 transition-transform group-hover:translate-x-1" />}

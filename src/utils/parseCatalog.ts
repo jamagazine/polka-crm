@@ -152,3 +152,107 @@ export function parseCatalogItem(rawItem: any): WarehouseItem | null {
         pic: Array.isArray(rawItem.pic) ? rawItem.pic : undefined
     };
 }
+
+/**
+ * Обогащает массив WarehouseItem: для папок рекурсивно считает
+ * totalStock, totalValue, skuCount, minusesCount, moneyIssuesCount,
+ * zeroStockCount, multiIssuesCount, hasSubfolders, subFoldersCount и т.д.
+ *
+ * Применяется и после загрузки из кэша, и после синхронизации с API.
+ */
+export function enrichWarehouseData(items: WarehouseItem[]): WarehouseItem[] {
+    // 1. Строим карту «parentId → дочерние элементы»
+    const folderChildren = new Map<string, WarehouseItem[]>();
+
+    for (const item of items) {
+        if (item.parentId) {
+            const children = folderChildren.get(item.parentId) || [];
+            children.push(item);
+            folderChildren.set(item.parentId, children);
+        }
+    }
+
+    // 2. Рекурсивный подсчёт статистики с мемоизацией
+    type FolderStats = {
+        totalStock: number;
+        totalValue: number;
+        skuCount: number;
+        minusesCount: number;
+        moneyIssuesCount: number;
+        zeroStockCount: number;
+        multiIssuesCount: number;
+    };
+
+    const memo = new Map<string, FolderStats>();
+
+    function getRecursiveStats(folderId: string): FolderStats {
+        if (memo.has(folderId)) return memo.get(folderId)!;
+
+        let totalStock = 0;
+        let totalValue = 0;
+        let skuCount = 0;
+        let minusesCount = 0;
+        let moneyIssuesCount = 0;
+        let zeroStockCount = 0;
+        let multiIssuesCount = 0;
+
+        const children = folderChildren.get(folderId) || [];
+        for (const child of children) {
+            if (child.isFolder) {
+                const stats = getRecursiveStats(child._id);
+                totalStock += stats.totalStock;
+                totalValue += stats.totalValue;
+                skuCount += stats.skuCount;
+                minusesCount += stats.minusesCount;
+                moneyIssuesCount += stats.moneyIssuesCount;
+                zeroStockCount += stats.zeroStockCount;
+                multiIssuesCount += stats.multiIssuesCount;
+            } else {
+                totalStock += child.stock || 0;
+                totalValue += child.totalValue || 0;
+                skuCount += 1;
+                minusesCount += child.minusesCount || 0;
+                moneyIssuesCount += child.moneyIssuesCount || 0;
+                zeroStockCount += child.zeroStockCount || 0;
+                multiIssuesCount += child.multiIssuesCount || 0;
+            }
+        }
+
+        const result = { totalStock, totalValue, skuCount, minusesCount, moneyIssuesCount, zeroStockCount, multiIssuesCount };
+        memo.set(folderId, result);
+        return result;
+    }
+
+    // 3. Обогащаем папки агрегированными данными
+    const enriched = items.map(item => {
+        if (item.isFolder) {
+            const children = folderChildren.get(item._id) || [];
+            const directFolders = children.filter(c => c.isFolder).length;
+            const directItems = children.filter(c => !c.isFolder).length;
+            const stats = getRecursiveStats(item._id);
+
+            return {
+                ...item,
+                hasSubfolders: directFolders > 0,
+                subFoldersCount: directFolders,
+                subItemsCount: directItems,
+                recursiveItemsCount: stats.skuCount,
+                totalStock: stats.totalStock,
+                totalValue: stats.totalValue,
+                skuCount: stats.skuCount,
+                minusesCount: stats.minusesCount,
+                moneyIssuesCount: stats.moneyIssuesCount,
+                zeroStockCount: stats.zeroStockCount,
+                multiIssuesCount: stats.multiIssuesCount,
+            };
+        }
+        return item;
+    });
+
+    // 4. Сортировка: папки сверху, затем по имени
+    return enriched.sort((a, b) => {
+        if (a.isFolder && !b.isFolder) return -1;
+        if (!a.isFolder && b.isFolder) return 1;
+        return (a.name || '').localeCompare(b.name || '', 'ru', { sensitivity: 'base' });
+    });
+}

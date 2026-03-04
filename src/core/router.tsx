@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router';
+import { Routes, Route, Navigate } from 'react-router';
 import { Home, Users, Package, FileText, Terminal, type LucideIcon } from 'lucide-react';
 import { MastersPage } from '../modules/masters/MastersPage';
 import { WarehousePage } from '../modules/warehouse/WarehousePage';
@@ -55,7 +55,7 @@ function Placeholder({ name }: { name: string }) {
 export function AppRoutes() {
     return (
         <Routes>
-            <Route path="/" element={<Placeholder name="Главная" />} />
+            <Route path="/" element={<Navigate to="/masters" replace />} />
             <Route path="/masters" element={<MastersPage />} />
             <Route path="/masters/:id" element={<Placeholder name="Мастер" />} />
             <Route path="/warehouse" element={<WarehousePage />} />

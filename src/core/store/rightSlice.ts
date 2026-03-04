@@ -24,7 +24,7 @@ export const createRightSlice = (
     set: (fn: (s: RightSlice) => Partial<RightSlice>) => void,
 ): RightSlice => ({
     rightFooterCards: [],
-    activeRightCardId: '',
+    activeRightCardId: 'calendar',
 
     setRightFooterCards: (cards) =>
         set((s) => {

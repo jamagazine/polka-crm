@@ -227,7 +227,7 @@ export function MastersPage() {
                 return '—';
             }
             case 'name':
-                return (showRawNames ? row.name : (row.cleanName || row.name)) || '—';
+                return <span title={row.name}>{(showRawNames ? row.name : (row.cleanName || row.name)) || '—'}</span>;
             case 'category':
                 return (row as any).category || row.parsedCategory || '—';
             case 'phone': {
@@ -349,17 +349,19 @@ export function MastersPage() {
         }
     }, [activeRightCardId, setMastersFilter]);
 
-    // Загрузка данных
+    // Загрузка данных + синхронизация с API при каждом входе
     useEffect(() => {
-        if (masters.length === 0) {
-            loadMasters();
-        } else {
-            // Temporary debug: log all master names exactly as they are in the DB
-            console.log("--- EXACT MASTER NAMES (Copy these to see if there are hidden spaces) ---");
-            masters.forEach(m => console.log(`'${m.name}'`));
-            console.log("-----------------------------------------------------------------");
-        }
-    }, [masters, loadMasters]);
+        const init = async () => {
+            // Загружаем из кэша, если данных нет
+            if (masters.length === 0) {
+                await loadMasters();
+            }
+            // Синхронизируем с API при каждом входе на страницу
+            loadMasters(true);
+        };
+        init();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
 
     // Esc listener to clear selection and highlights

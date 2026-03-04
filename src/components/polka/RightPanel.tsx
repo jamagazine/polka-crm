@@ -61,7 +61,7 @@ export function RightPanel() {
 
   const isCollapsed = contextCollapsed;
   const isMobile = useBreakpoint(MOBILE_BREAKPOINT);
-  const [activeTab, setActiveTab] = useState<RightTab>('settings');
+  const [activeTab, setActiveTab] = useState<RightTab>('calendar');
 
   const location = useLocation();
   const isWarehousePage = location.pathname.includes('warehouse');

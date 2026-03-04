@@ -203,7 +203,7 @@ export function SystemSettingsOverlay({ open, onClose, isWarehousePage, isMaster
         const report = [
             `=== Отчёт Полка CRM ===`,
             `Дата: ${new Date().toLocaleString('ru-RU')}`,
-            `DB: PolkaDB_v3`,
+            `DB: PolkaDB_Final`,
             ``,
             `Каталог: ${catalog.length} элементов`,
             `  Папок: ${foldersCount}`,

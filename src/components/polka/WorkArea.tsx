@@ -141,6 +141,15 @@ export function WorkArea() {
     return (
       <div className="flex items-center gap-2 justify-end w-full min-w-0">
 
+        {/* Global Search Button */}
+        <button
+          onClick={() => setIsSearchActive(!isSearchActive)}
+          className={BTN_SQUARE}
+          title={isSearchActive ? "Закрыть поиск" : "Поиск"}
+        >
+          {isSearchActive ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+        </button>
+
         {/* Segmented Action Group */}
         {(refreshAction || hasSelection) && (
           <div className="flex items-center h-9 overflow-hidden rounded-md bg-secondary transition-all duration-300 ease-in-out border border-border/50 shrink-0 md:w-[130px] w-auto relative">
@@ -188,15 +197,6 @@ export function WorkArea() {
             </AnimatePresence>
           </div>
         )}
-
-        {/* Global Search Button */}
-        <button
-          onClick={() => setIsSearchActive(!isSearchActive)}
-          className={BTN_SQUARE}
-          title={isSearchActive ? "Закрыть поиск" : "Поиск"}
-        >
-          {isSearchActive ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-        </button>
 
         {/* Optional Additional Actions */}
         {otherActions.map((action) => (
