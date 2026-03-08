@@ -153,7 +153,7 @@ export function MastersPage() {
         highlightedIds, clearHighlightedIds,
         mastersColumnOrder, setColumnOrder,
         setExportCallback,
-        seniorityFilter, showOnlySelected, hiddenColumns
+        seniorityFilter, showOnlySelected, hiddenColumns, dateRange
     } = usePanelStore(useShallow(state => ({
         setRightFooterCards: state.setRightFooterCards,
         activeRightCardId: state.activeRightCardId,
@@ -182,7 +182,8 @@ export function MastersPage() {
         setExportCallback: state.setExportCallback,
         seniorityFilter: state.seniorityFilter,
         showOnlySelected: state.showOnlySelected,
-        hiddenColumns: state.hiddenColumns
+        hiddenColumns: state.hiddenColumns,
+        dateRange: state.dateRange
     })));
 
     const { showRawNames, showShortNames, wordWrap } = mastersPrefs;
@@ -533,6 +534,21 @@ export function MastersPage() {
                 if (!selectedIds.has(master._id)) return false;
             }
 
+            // ── Фильтр по календарному диапазону ──
+            if (dateRange.start && dateRange.end) {
+                if (!master.created) return false;
+                let ts = Number(master.created);
+                if (isNaN(ts) && typeof master.created === 'string') {
+                    ts = new Date(master.created).getTime();
+                } else if (ts > 0 && ts < 10000000000) {
+                    ts = ts * 1000;
+                }
+                if (!ts || isNaN(ts)) return false;
+                const rangeStart = dateRange.start.getTime();
+                const rangeEnd = dateRange.end.getTime() + 86399999; // end of day
+                if (ts < rangeStart || ts > rangeEnd) return false;
+            }
+
             if (activeSearchCol && debouncedSearchTerm) {
                 const term = debouncedSearchTerm;
                 const compareValue = getCellValue(master, activeSearchCol);
@@ -550,7 +566,7 @@ export function MastersPage() {
 
             return true;
         });
-    }, [masters, mastersFilter, activeSearchCol, debouncedSearchTerm, seniorityFilter, showOnlySelected, selectedIds]);
+    }, [masters, mastersFilter, activeSearchCol, debouncedSearchTerm, seniorityFilter, showOnlySelected, selectedIds, dateRange]);
 
     // Обновляем счетчики только когда меняется отфильтрованный массив
     useEffect(() => {

@@ -17,6 +17,7 @@ import { cn } from '../../components/ui/utils';
 import { SmartTableHead, SmartTableCell, SmartColHeader, SortIcon, type SmartTableColDef, type SortDir } from '../../components/polka/SmartTable';
 import { exportSmartTable } from '../../utils/exportToExcel';
 import { VirtualSmartTable } from '../../components/ui/VirtualSmartTable';
+import { type Master } from '../../api/client';
 
 // ─── Константы КОЛОНОК ────────────────────────────────────────────────────────
 
@@ -47,7 +48,8 @@ export function WarehousePage() {
         highlightedIds, clearHighlightedIds,
         warehousePrefs, warehouseColumnOrder, setColumnOrder,
         setExportCallback,
-        statusFilter, showOnlySelected, hiddenColumns
+        statusFilter, showOnlySelected, hiddenColumns,
+        masters, dateRange
     } = usePanelStore(useShallow(state => ({
         setRightFooterCards: state.setRightFooterCards,
         activeRightCardId: state.activeRightCardId,
@@ -79,7 +81,9 @@ export function WarehousePage() {
         setExportCallback: state.setExportCallback,
         statusFilter: state.statusFilter,
         showOnlySelected: state.showOnlySelected,
-        hiddenColumns: state.hiddenColumns
+        hiddenColumns: state.hiddenColumns,
+        masters: state.masters,
+        dateRange: state.dateRange
     })));
 
     const { showRawNames: showWarehouseRawNames, wordWrap, showShortNames } = warehousePrefs;
@@ -281,6 +285,15 @@ export function WarehousePage() {
                     return <Package className="w-4 h-4 text-slate-500" />;
                 }
             }
+
+            case 'code':
+            case 'article':
+            case 'barcode':
+                return (
+                    <span className="text-sm text-muted-foreground tabular-nums truncate block w-full">
+                        {item[colId as keyof WarehouseItem] || '—'}
+                    </span>
+                );
 
             case 'status': {
                 const hasMinuses = isProductView && !item.isFolder
@@ -708,6 +721,23 @@ export function WarehousePage() {
                 if (!selectedIds.has(item._id)) return false;
             }
 
+            // ── Фильтр папок по календарному диапазону (через дату регистрации мастера) ──
+            if (dateRange.start && dateRange.end && item.isFolder && currentFolderId === null) {
+                // Найти мастера с таким же именем
+                const matchingMaster = masters.find(m => m.name === item.name);
+                if (!matchingMaster || !matchingMaster.created) return false;
+                let ts = Number(matchingMaster.created);
+                if (isNaN(ts) && typeof matchingMaster.created === 'string') {
+                    ts = new Date(matchingMaster.created).getTime();
+                } else if (ts > 0 && ts < 10000000000) {
+                    ts = ts * 1000;
+                }
+                if (!ts || isNaN(ts)) return false;
+                const rangeStart = dateRange.start.getTime();
+                const rangeEnd = dateRange.end.getTime() + 86399999;
+                if (ts < rangeStart || ts > rangeEnd) return false;
+            }
+
             // Дополнительно применяем поиск по колонкам
             if (effectiveSearchTerm) {
                 if (activeSearchCol) {
@@ -734,7 +764,6 @@ export function WarehousePage() {
                         return false;
                     }
                 } else {
-                    // Глобальный поиск по всем текстовым полям, если колонка не выбрана
                     const match = (item.name?.toLowerCase().includes(effectiveSearchTerm)) ||
                         (item.code?.toLowerCase().includes(effectiveSearchTerm)) ||
                         (item.article?.toLowerCase().includes(effectiveSearchTerm)) ||
@@ -752,7 +781,7 @@ export function WarehousePage() {
         }
 
         return result;
-    }, [catalog, viewMode, currentFolderId, activeSearchCol, debouncedSearchTerm, statusFilter, showOnlySelected, selectedIds]);
+    }, [catalog, viewMode, currentFolderId, activeSearchCol, debouncedSearchTerm, statusFilter, showOnlySelected, selectedIds, dateRange, masters]);
 
     // ── Ренейм особых папок "на лету" ──
     const getDisplayName = (item: typeof catalog[0]) => {

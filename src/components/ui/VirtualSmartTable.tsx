@@ -180,7 +180,7 @@ const VirtualRow = React.memo(function VirtualRow({
                 const leftBorderCn = col.leftBorder && isAlwaysSticky ? LEFT_BORDER_SHADOW : '';
 
                 const baseCellCn = cn(
-                    'flex items-center min-h-[44px]',
+                    'flex items-center min-h-[39px]',
                     'border-b border-[var(--border)]',
                     col.align === 'center' && 'justify-center text-center',
                     col.align === 'right' && 'justify-end text-right',
@@ -378,7 +378,7 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
     const virtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => scrollRef.current,
-        estimateSize: () => 45,
+        estimateSize: () => 40,
         overscan: 15,
         measureElement: (el) => {
             if (!el) return 45;
@@ -399,7 +399,7 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
                 {/* ── Sticky Header ── */}
                 <div
                     className="grid bg-background sticky top-0 z-30 min-w-[800px] border-b border-border"
-                    style={{ gridTemplateColumns: gridTemplate, height: '50px' }}
+                    style={{ gridTemplateColumns: gridTemplate, height: '54px' }}
                 >
                     {processedColumns.map(col => {
                         const isDraggable = !col.isDragDisabled;

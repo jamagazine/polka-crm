@@ -10,6 +10,7 @@ import { MOBILE_BREAKPOINT } from '../../core/config';
 import { cn } from '../ui/utils';
 import { Checkbox } from '../ui/checkbox';
 import { SystemSettingsOverlay } from './SystemSettingsOverlay';
+import { InteractiveCalendar } from '../../modules/right/InteractiveCalendar';
 
 type RightTab = 'context' | 'calendar' | 'settings';
 
@@ -153,14 +154,8 @@ export function RightPanel() {
     switch (activeTab) {
       case 'calendar':
         return (
-          <div className="px-4 pb-4 flex flex-col gap-5">
-            <div className="flex items-center justify-between h-[50px] border-b border-border/50 -mx-4 px-4 mb-2">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">📅 Календарь</h3>
-            </div>
-            <div className="h-48 rounded bg-gray-100 border flex items-center justify-center text-sm text-gray-400"
-              style={{ borderColor: CSS.border }}>
-              Тут будет календарь
-            </div>
+          <div className="bg-white">
+            <InteractiveCalendar />
           </div>
         );
       case 'settings':

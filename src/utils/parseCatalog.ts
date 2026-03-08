@@ -132,7 +132,7 @@ export function parseCatalogItem(rawItem: any): WarehouseItem | null {
         parentId: pStr,
         name: rawItem.name ? String(rawItem.name).trim() : "Без названия",
         code: rawItem.code ? String(rawItem.code) : "",
-        article: rawItem.sku ? String(rawItem.sku) : "",
+        article: rawItem.article || rawItem.sku ? String(rawItem.article || rawItem.sku) : "",
         barcode: rawItem.barcode ? String(rawItem.barcode) : "",
         stock,
         price,
