@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Settings, Wrench, ChevronRight, ChevronLeft, FileText, CaseSensitive, WrapText, Download, RotateCcw, Filter, Columns, ChevronDown, AlertTriangle } from 'lucide-react';
+import { MONTH_NAMES, MONTHS_GENITIVE } from '../../core/constants/calendar';
 import { getFormattedRangeText } from '../../modules/right/statsHelper';
 import { useLocation } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
@@ -13,7 +14,14 @@ import { Checkbox } from '../ui/checkbox';
 import { SystemSettingsOverlay } from './SystemSettingsOverlay';
 import { InteractiveCalendar } from '../../modules/right/InteractiveCalendar';
 import { type RightTab } from '../../core/store/rightSlice';
-import { ActionModal } from '../common/ActionModal';
+import { ActionModal } from '../ui/ActionModal';
+import { type ColId } from '../../core/types/table';
+
+interface PanelCol {
+  id: ColId;
+  label: string | React.ReactNode;
+  dropdownLabel?: string;
+}
 
 export function RightPanel() {
   const {
@@ -119,18 +127,20 @@ export function RightPanel() {
 
 
   // Списки колонок для разных режимов
-  const FOLDER_COLS = [
+  const FOLDER_COLS: PanelCol[] = [
     { id: 'name', label: 'Наименование' },
+    { id: 'category', label: 'Категория' },
     { id: 'skuCount', label: 'Позиций' },
     { id: 'stock', label: 'Остаток' },
     { id: 'totalValue', label: 'Сумма' },
-    { id: 'zeroStockCount', label: '📦' },
-    { id: 'minusesCount', label: '📉' },
-    { id: 'moneyIssuesCount', label: '💸' }
+    { id: 'zeroStockCount', label: '📦', dropdownLabel: '📦 Нулевой остаток' },
+    { id: 'minusesCount', label: '📉', dropdownLabel: '📉 Минусовой остаток' },
+    { id: 'moneyIssuesCount', label: '💸', dropdownLabel: '💸 Проблема с ценой' }
   ];
 
-  const ITEM_COLS = [
+  const ITEM_COLS: PanelCol[] = [
     { id: 'name', label: 'Наименование' },
+    { id: 'category', label: 'Категория' },
     { id: 'code', label: 'Код' },
     { id: 'article', label: 'Артикул' },
     { id: 'barcode', label: 'Штрихкод' },
@@ -143,7 +153,7 @@ export function RightPanel() {
     { id: 'sales', label: 'Продажи' }
   ];
 
-  const MASTERS_COLS = [
+  const MASTERS_COLS: PanelCol[] = [
     { id: 'name', label: 'Наименование' },
     { id: 'status', label: 'Стаж' },
     { id: 'category', label: 'Категория' },
@@ -306,7 +316,7 @@ export function RightPanel() {
                           checked={!isHidden}
                           onCheckedChange={() => toggleHiddenColumn(currentPageKey, col.id)}
                         />
-                        <span className={cn(isHidden && 'line-through text-muted-foreground')}>{col.label}</span>
+                        <span className={cn(isHidden && 'line-through text-muted-foreground')}>{col.dropdownLabel || col.label}</span>
                       </label>
                     );
                   })}
@@ -683,12 +693,6 @@ export function LiveClockHeader({
     return () => clearInterval(interval);
   }, []);
 
-  const MONTHS_GENITIVE = [
-    'Марта', 'Февраля', 'Марта', 'Апреля', 'Мая', 'Июня',
-    'Июля', 'Августа', 'Сентября', 'Октября', 'Ноября', 'Декабря'
-  ];
-  MONTHS_GENITIVE[0] = 'Января'; // Corrected the first element, was copying error
-
   const d = now.getDate();
   const monthName = MONTHS_GENITIVE[now.getMonth()];
   const y = now.getFullYear();
@@ -701,10 +705,6 @@ export function LiveClockHeader({
 
   const hasRange = dateRange.start !== null;
 
-  const MONTH_NAMES = [
-    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-  ];
 
   const rangeText = hasRange ? getFormattedRangeText(calendarViewMode, viewMonth, viewYear, dateRange) : '';
 

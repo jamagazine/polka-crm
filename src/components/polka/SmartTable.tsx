@@ -5,8 +5,7 @@ import { cn } from '../ui/utils';
 import { TableHead, TableCell } from '../ui/table';
 import { CSS } from '../../utils/cssVars';
 
-export type SortDir = 'asc' | 'desc';
-
+import type { SortDir, SmartTableColDef } from '../../core/types/table';
 export function SortIcon({ active, dir }: { active: boolean; dir: SortDir | null }) {
     const cls = 'w-3 h-3 flex-none transition-all';
     if (!active || !dir) return <ArrowUpDown className={cn(cls, 'text-muted-foreground opacity-35')} />;
@@ -100,21 +99,7 @@ export function SmartColHeader({
     );
 }
 
-export interface SmartTableColDef {
-    sticky?: boolean;
-    responsiveSticky?: boolean;
-    stickyLeft?: string;
-    stickyRight?: boolean;
-    stickyRightOffset?: string;
-    leftBorder?: boolean;
-    align?: 'center' | 'left' | 'right';
-    width?: string;
-    minWidth?: string;
-    maxWidth?: string;
-    freezeEnd?: boolean;
-    isDragDisabled?: boolean;
-    tooltip?: string;
-}
+
 
 const FREEZE_SHADOW = 'shadow-[6px_0_12px_-4px_rgba(0,0,0,0.15)] border-r-2 border-border/50';
 const LEFT_BORDER_SHADOW = 'shadow-[-6px_0_12px_-4px_rgba(0,0,0,0.15)] border-l-2 border-border/50';

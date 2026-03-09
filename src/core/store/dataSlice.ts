@@ -305,6 +305,15 @@ export const createDataSlice = (
             // Используем сервис для получения данных
             const list = await mastersService.getMasters(forceSync);
 
+            // ИСПРАВЛЕНИЕ: Если принудительный запрос вернул 0 (ошибка прокси или пустой ответ),
+            // не затираем текущий стор и кэш.
+            if (forceSync && (list === null || list === undefined || list.length === 0)) {
+                console.warn('[MASTERS] API вернул 0 записей при синхронизации. Отмена затирания стора.');
+                const { toast } = await import('sonner');
+                toast.error('Сервер вернул пустой список мастеров. Синхронизация отменена для защиты данных.');
+                return;
+            }
+
             // Обогащаем распарсенными полями и сортируем
             const processedMasters = list
                 .map(m => ({ ...m, ...parseMasterData(m) }))

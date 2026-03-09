@@ -1,28 +1,13 @@
 import React, { useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Package, Folder, FolderCog, FolderTree, ChevronRight, CheckSquare, MinusSquare, Square, TriangleAlert, Check } from 'lucide-react';
-import { Checkbox } from './checkbox';
-import { cn } from './utils';
+import { Checkbox } from '../ui/checkbox';
+import { cn } from '../ui/utils';
 import {
     SmartColHeader,
     SortIcon,
-    type SmartTableColDef,
-    type SortDir,
 } from '../polka/SmartTable';
-
-// ─── Типы ────────────────────────────────────────────────────────────────────
-
-type ColId = 'index' | 'type' | 'status' | 'name' | 'category' | 'skuCount' | 'stock' | 'totalValue' | 'minusesCount' | 'moneyIssuesCount' | 'zeroStockCount' | 'code' | 'article' | 'barcode' | 'purchase' | 'price' | 'profit' | 'margin' | 'roi' | 'sales';
-
-interface ColDef extends SmartTableColDef {
-    id: ColId;
-    label: string | React.ReactNode;
-    sortable: boolean;
-    searchable: boolean;
-    sticky?: boolean;
-}
-
-export interface VirtualSmartTableProps {
+import type { ColDef, ColId, SortDir } from '../../core/types/table'; export interface VirtualSmartTableProps {
     data: any[];
     activeColumns: ColDef[];
     sort: { col: ColId; dir: SortDir } | null;
@@ -59,7 +44,7 @@ export interface VirtualSmartTableProps {
 
 /** Парсит Tailwind-класс w-[Xpx] → "Xpx", иначе fallback */
 function parseWidth(col: ColDef): string {
-    const w = col.width || '';
+    const w = String(col.width || '');
     const m = w.match(/w-\[(.+?)\]/);
     if (m) return m[1];
     return '150px';
@@ -361,7 +346,7 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
             const isStickyTarget = ['index', 'type', 'status', 'name'].includes(col.id as string);
             if (isStickyTarget) {
                 const newCol = { ...col, sticky: true, stickyLeft: `${currentLeft}px` };
-                const wMatch = (col.width || '').match(/w-\[?(\d+)px\]?/);
+                const wMatch = String(col.width || '').match(/w-\[?(\d+)px\]?/);
                 if (wMatch) {
                     currentLeft += parseInt(wMatch[1], 10);
                 } else {

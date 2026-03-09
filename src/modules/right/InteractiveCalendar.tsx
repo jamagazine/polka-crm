@@ -8,17 +8,7 @@ import { getMastersInflowData, getFormattedRangeText } from './statsHelper';
 import { StatsInflowChart } from './StatsInflowChart';
 
 type FooterMode = 'idle' | 'search' | 'range-picker' | 'expanded';
-const MONTH_NAMES = [
-    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
-];
-
-const MONTH_NAMES_SHORT = [
-    'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
-    'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'
-];
-
-const QUARTER_NAMES = ['I', 'II', 'III', 'IV'];
+import { MONTH_NAMES, MONTH_NAMES_SHORT, QUARTER_NAMES } from '../../core/constants/calendar';
 
 const WEEK_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 

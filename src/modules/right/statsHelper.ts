@@ -1,5 +1,6 @@
 import { Master } from '../../api/client';
 import { CalendarViewMode, DateRange } from '../../core/store/rightSlice';
+import { MONTH_NAMES, QUARTER_NAMES, MONTHS_GENITIVE_LOWER } from '../../core/constants/calendar';
 
 export interface DrillDownTarget {
     mode: CalendarViewMode;
@@ -252,9 +253,7 @@ export function getFormattedRangeText(
     viewYear: number,
     dateRange: DateRange
 ): string {
-    const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-    const MONTH_GENITIVE = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-    const QUARTER_NAMES = ['I', 'II', 'III', 'IV'];
+
 
     if (mode === 'year') {
         return `${viewYear} год`;
@@ -279,7 +278,7 @@ export function getFormattedRangeText(
 
         if (s.getTime() === e.getTime()) {
             // Single day
-            return `${sDay} ${MONTH_GENITIVE[sMonth]} ${sYear}г.`;
+            return `${sDay} ${MONTHS_GENITIVE_LOWER[sMonth]} ${sYear}г.`;
         }
 
         // Entire exact month check
@@ -289,12 +288,12 @@ export function getFormattedRangeText(
 
         // Same month cross-week
         if (sMonth === eMonth && sYear === eYear) {
-            return `${sDay} - ${eDay} ${MONTH_GENITIVE[sMonth]} ${sYear}г.`;
+            return `${sDay} - ${eDay} ${MONTHS_GENITIVE_LOWER[sMonth]} ${sYear}г.`;
         }
 
         // Cross month/year
-        const left = `${sDay} ${MONTH_GENITIVE[sMonth]}`;
-        const right = `${eDay} ${MONTH_GENITIVE[eMonth]} ${eYear}г.`;
+        const left = `${sDay} ${MONTHS_GENITIVE_LOWER[sMonth]}`;
+        const right = `${eDay} ${MONTHS_GENITIVE_LOWER[eMonth]} ${eYear}г.`;
         return `${left} - ${right}`;
     }
 
