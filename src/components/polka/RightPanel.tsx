@@ -11,8 +11,7 @@ import { cn } from '../ui/utils';
 import { Checkbox } from '../ui/checkbox';
 import { SystemSettingsOverlay } from './SystemSettingsOverlay';
 import { InteractiveCalendar } from '../../modules/right/InteractiveCalendar';
-
-type RightTab = 'context' | 'calendar' | 'settings';
+import { type RightTab } from '../../core/store/rightSlice';
 
 export function RightPanel() {
   const {
@@ -27,7 +26,8 @@ export function RightPanel() {
     showOnlySelected, setShowOnlySelected,
     hiddenColumns, toggleHiddenColumn,
     warehouseFolderId, warehouseView,
-    columnPresets, activePresetId, applyPreset, savePreset, deletePreset
+    columnPresets, activePresetId, applyPreset, savePreset, deletePreset,
+    activeRightTab, setActiveRightTab
   } = usePanelStore(useShallow(state => ({
     contextCollapsed: state.contextCollapsed,
     toggleContext: state.toggleContext,
@@ -57,12 +57,13 @@ export function RightPanel() {
     activePresetId: state.activePresetId,
     applyPreset: state.applyPreset,
     savePreset: state.savePreset,
-    deletePreset: state.deletePreset
+    deletePreset: state.deletePreset,
+    activeRightTab: state.activeRightTab,
+    setActiveRightTab: state.setActiveRightTab
   })));
 
   const isCollapsed = contextCollapsed;
   const isMobile = useBreakpoint(MOBILE_BREAKPOINT);
-  const [activeTab, setActiveTab] = useState<RightTab>('calendar');
 
   const location = useLocation();
   const isWarehousePage = location.pathname.includes('warehouse');
@@ -80,15 +81,15 @@ export function RightPanel() {
   const handleToggleContext = () => toggleContext(isMobile);
 
   const headerSlots = [
-    { icon: Calendar, label: 'Календарь', action: () => setActiveTab('calendar'), tab: 'calendar' as RightTab },
-    { icon: Wrench, label: 'Инструменты', action: () => setActiveTab('settings'), tab: 'settings' as RightTab },
+    { icon: Calendar, label: 'Календарь', action: () => setActiveRightTab('calendar'), tab: 'calendar' as RightTab },
+    { icon: Wrench, label: 'Инструменты', action: () => setActiveRightTab('settings'), tab: 'settings' as RightTab },
     { icon: null, label: '', tab: null },
     { icon: null, label: '', tab: null },
     { icon: isCollapsed ? ChevronLeft : ChevronRight, label: 'Свернуть', action: handleToggleContext, tab: null },
   ];
 
   const expandToTab = (tab: RightTab) => {
-    setActiveTab(tab);
+    setActiveRightTab(tab);
     if (isCollapsed) handleToggleContext();
   };
 
@@ -151,10 +152,10 @@ export function RightPanel() {
 
   /** Контент центральной части в зависимости от вкладки */
   const renderContent = () => {
-    switch (activeTab) {
+    switch (activeRightTab) {
       case 'calendar':
         return (
-          <div className="bg-white">
+          <div className="bg-white h-full flex flex-col">
             <InteractiveCalendar />
           </div>
         );
@@ -455,7 +456,7 @@ export function RightPanel() {
               <button
                 key={idx}
                 onClick={slot.action}
-                className={`flex items-center justify-center transition-colors border-r last:border-r-0 ${slot.tab && slot.tab === activeTab ? 'bg-gray-100' : 'hover:bg-gray-100'
+                className={`flex items-center justify-center transition-colors border-r last:border-r-0 ${slot.tab && slot.tab === activeRightTab ? 'bg-gray-100' : 'hover:bg-gray-100'
                   }`}
                 style={{ borderColor: CSS.border }}
                 title={slot.label}

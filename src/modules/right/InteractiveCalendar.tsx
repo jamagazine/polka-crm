@@ -4,9 +4,10 @@ import { useShallow } from 'zustand/react/shallow';
 import { cn } from '../../components/ui/utils';
 import { usePanelStore } from '../../core/store';
 import type { CalendarViewMode } from '../../core/store/rightSlice';
+import { getMastersInflowData, getFormattedRangeText } from './statsHelper';
+import { StatsInflowChart } from './StatsInflowChart';
 
 type FooterMode = 'idle' | 'search' | 'range-picker' | 'expanded';
-
 const MONTH_NAMES = [
     'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
     'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
@@ -184,20 +185,37 @@ function isInRange(day: Date, start: Date | null, end: Date | null): boolean {
 export function InteractiveCalendar() {
     const {
         dateRange, setDateRange,
-        calendarViewMode, setCalendarViewMode
+        calendarViewMode, setCalendarViewMode,
+        footerMode, setFooterMode,
+        viewMonth, setViewMonth,
+        viewYear, setViewYear,
+        resetCalendar,
+        masters,
+        baseFilteredIds
     } = usePanelStore(useShallow(state => ({
         dateRange: state.dateRange,
         setDateRange: state.setDateRange,
         calendarViewMode: state.calendarViewMode,
-        setCalendarViewMode: state.setCalendarViewMode
+        setCalendarViewMode: state.setCalendarViewMode,
+        footerMode: state.footerMode,
+        setFooterMode: state.setFooterMode,
+        viewMonth: state.viewMonth,
+        setViewMonth: state.setViewMonth,
+        viewYear: state.viewYear,
+        setViewYear: state.setViewYear,
+        resetCalendar: state.resetCalendar,
+        masters: state.masters,
+        baseFilteredIds: state.baseFilteredIds
     })));
 
-    const today = startOfDay(new Date());
-    const [viewYear, setViewYear] = useState(today.getFullYear());
-    const [viewMonth, setViewMonth] = useState(today.getMonth());
-    const [selectionAnchor, setSelectionAnchor] = useState<Date | null>(null);
+    const filteredMasters = useMemo(() => {
+        if (!baseFilteredIds || baseFilteredIds.length === 0) return [];
+        const idSet = new Set(baseFilteredIds);
+        return masters.filter(m => idSet.has(m._id));
+    }, [masters, baseFilteredIds]);
 
-    const [footerMode, setFooterMode] = useState<FooterMode>('idle');
+    const today = startOfDay(new Date());
+    const [selectionAnchor, setSelectionAnchor] = useState<Date | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
 
     /* ─── Navigation ─── */
@@ -232,7 +250,7 @@ export function InteractiveCalendar() {
         while (newMonth > 11) { newMonth -= 12; newYear++; }
         setViewMonth(newMonth);
         setViewYear(newYear);
-    }, [viewMonth, viewYear]);
+    }, [viewMonth, viewYear, setViewMonth, setViewYear]);
 
     /* ─── Preset buttons ─── */
 
@@ -251,7 +269,7 @@ export function InteractiveCalendar() {
             const [s, e] = getYearRange(viewYear);
             setDateRange(s, e);
         }
-    }, [viewYear, viewMonth, setCalendarViewMode, setDateRange]);
+    }, [viewYear, viewMonth, setCalendarViewMode, setDateRange, setFooterMode]);
 
     /* ─── Click handlers ─── */
 
@@ -346,30 +364,13 @@ export function InteractiveCalendar() {
     const hasRange = rangeStart !== null && rangeEnd !== null;
 
     const rangeText = useMemo(() => {
-        if (!dateRange.start || !dateRange.end) return 'Весь период';
-
-        const datesStr = `${formatDateShort(dateRange.start)} — ${formatDateShort(dateRange.end)}`;
-
-        if (calendarViewMode === 'quarter') {
-            const q = getQuarter(viewMonth);
-            return `${QUARTER_NAMES[q]} кв. ${datesStr}`;
-        }
-        if (calendarViewMode === 'year') {
-            return `${viewYear} год`;
-        }
-
-        return datesStr;
-    }, [dateRange.start, dateRange.end, calendarViewMode, viewMonth, viewYear]);
+        return getFormattedRangeText(calendarViewMode, viewMonth, viewYear, dateRange);
+    }, [calendarViewMode, viewMonth, viewYear, dateRange]);
 
     const handleReset = useCallback(() => {
-        const now = new Date();
-        setDateRange(null, null);
-        setCalendarViewMode('month');
+        resetCalendar();
         setSelectionAnchor(null);
-        setViewYear(now.getFullYear());
-        setViewMonth(now.getMonth());
-        setFooterMode('idle');
-    }, [setDateRange, setCalendarViewMode]);
+    }, [resetCalendar]);
 
     const handleSearchSubmit = () => {
         const parsed = parseSearchQuery(searchQuery);
@@ -381,6 +382,8 @@ export function InteractiveCalendar() {
             setFooterMode('idle');
         }
     };
+
+
 
     return (
         <div className="flex flex-col select-none h-full bg-white relative">
@@ -394,243 +397,311 @@ export function InteractiveCalendar() {
                 </span>
             </div>
 
-            {/* 2. Центральная область (Grid) */}
-            <div className="px-2 pt-2 flex-1">
-                {/* Weekday labels */}
-                <div className="grid grid-cols-7 border-border/50">
-                    {WEEK_DAYS.map((wd) => (
-                        <div
-                            key={wd}
-                            className="flex items-center justify-center h-[40px] text-[10px] font-medium text-muted-foreground uppercase"
-                        >
-                            {wd}
-                        </div>
-                    ))}
-                </div>
-
-                {/* Day grid */}
-                <div className="grid grid-cols-7 pb-2">
-                    {visibleCells.map((cell, idx) => {
-                        const isToday = isSameDay(cell.date, today);
-                        const isStart = rangeStart && isSameDay(cell.date, rangeStart);
-                        const isEnd = rangeEnd && isSameDay(cell.date, rangeEnd);
-                        const inRange = !isSingleDay && isInRange(cell.date, rangeStart, rangeEnd);
-                        const isEdge = isStart || isEnd;
-
-                        let roundingClasses = 'rounded-[4px]';
-                        if (hasRange && inRange && !isSingleDay) {
-                            const col = idx % 7;
-                            const dAbove = new Date(cell.date);
-                            dAbove.setDate(dAbove.getDate() - 7);
-                            const hasRangeAbove = isInRange(dAbove, rangeStart, rangeEnd);
-
-                            const dBelow = new Date(cell.date);
-                            dBelow.setDate(dBelow.getDate() + 7);
-                            const hasRangeBelow = isInRange(dBelow, rangeStart, rangeEnd);
-
-                            const roundedTl = (isStart && col !== 0) || (col === 0 && !hasRangeAbove);
-                            const roundedBl = (isStart && col !== 0) || (col === 0 && !hasRangeBelow);
-                            const roundedTr = (isEnd && col !== 6) || (col === 6 && !hasRangeAbove);
-                            const roundedBr = (isEnd && col !== 6) || (col === 6 && !hasRangeBelow);
-
-                            roundingClasses = cn(
-                                roundedTl && 'rounded-tl-[4px]',
-                                roundedBl && 'rounded-bl-[4px]',
-                                roundedTr && 'rounded-tr-[4px]',
-                                roundedBr && 'rounded-br-[4px]'
-                            );
-                        }
-
-                        return (
-                            <div
-                                key={idx}
-                                onClick={() => cell.currentMonth && handleDayClick(cell.date)}
-                                onDoubleClick={() => cell.currentMonth && handleDayDoubleClick(cell.date)}
-                                className={cn(
-                                    'flex items-center justify-center h-[40px] text-[11px] transition-colors border-b border-border/10',
-                                    roundingClasses,
-                                    cell.currentMonth ? 'cursor-pointer' : 'cursor-default',
-                                    // Base text color
-                                    cell.currentMonth
-                                        ? 'text-foreground'
-                                        : 'text-muted-foreground/40',
-                                    // Range body (not edges)
-                                    cell.currentMonth && hasRange && inRange && !isEdge && 'bg-primary/15',
-                                    // Range edges (start/end)
-                                    cell.currentMonth && hasRange && isEdge && 'bg-primary text-white font-bold',
-                                    // Single day selection
-                                    cell.currentMonth && hasRange && isSingleDay && isStart && 'bg-primary text-white font-bold',
-                                    // Today ring (always visible as border when not selected as edge)
-                                    cell.currentMonth && isToday && !(hasRange && isEdge) && !(hasRange && isSingleDay && isStart) && 'ring-2 ring-primary ring-inset',
-                                    // Hover only for non-selected current-month cells
-                                    cell.currentMonth && !(hasRange && isEdge) && !(hasRange && isSingleDay && isStart) && 'hover:bg-muted/40',
-                                )}
-                            >
-                                {cell.day}
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* 3. Footer: State Machine */}
-            <div className="border-t border-border/50 bg-muted/5 shrink-0 overflow-hidden relative" style={{ minHeight: '48px' }}>
-
-                {/* Состояние 'idle' / 'expanded' - теперь они объединены */}
-                {footerMode === 'idle' && (
-                    <div className="flex items-center justify-between h-[48px] px-1 absolute inset-0 w-full bg-muted/5">
-
-                        <div className="flex items-center h-full">
-                            {(calendarViewMode !== 'month' || hasRange) && (
-                                <button
-                                    onClick={() => navigatePeriod(-1)}
-                                    className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground mr-0.5"
-                                    title="Предыдущий период (Квартал/Год)"
+            {/* 2. Центральная область (Grid & Chart) */}
+            <div className="flex flex-col shrink-0 overflow-visible w-full">
+                {/* Внутренний контейнер для Календаря и Футера без flex-grow (чтобы не расталкивать) */}
+                <div className="flex flex-col shrink-0">
+                    <div className="px-2 pt-2" onContextMenu={(e) => { e.preventDefault(); handleReset(); }}>
+                        {/* Weekday labels */}
+                        <div className="grid grid-cols-7 border-border/50">
+                            {WEEK_DAYS.map((wd) => (
+                                <div
+                                    key={wd}
+                                    className="flex items-center justify-center h-[40px] text-[10px] font-medium text-muted-foreground uppercase"
                                 >
-                                    <ChevronsLeft className="w-4 h-4" />
+                                    {wd}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Day grid */}
+                        <div className="grid grid-cols-7 pb-2">
+                            {visibleCells.map((cell, idx) => {
+                                const isToday = isSameDay(cell.date, today);
+                                const isStart = rangeStart && isSameDay(cell.date, rangeStart);
+                                const isEnd = rangeEnd && isSameDay(cell.date, rangeEnd);
+                                const inRange = !isSingleDay && isInRange(cell.date, rangeStart, rangeEnd);
+                                const isEdge = isStart || isEnd;
+
+                                let roundingClasses = 'rounded-[4px]';
+                                if (hasRange && inRange && !isSingleDay) {
+                                    const col = idx % 7;
+                                    const dAbove = new Date(cell.date);
+                                    dAbove.setDate(dAbove.getDate() - 7);
+                                    const hasRangeAbove = isInRange(dAbove, rangeStart, rangeEnd);
+
+                                    const dBelow = new Date(cell.date);
+                                    dBelow.setDate(dBelow.getDate() + 7);
+                                    const hasRangeBelow = isInRange(dBelow, rangeStart, rangeEnd);
+
+                                    const roundedTl = (isStart && col !== 0) || (col === 0 && !hasRangeAbove);
+                                    const roundedBl = (isStart && col !== 0) || (col === 0 && !hasRangeBelow);
+                                    const roundedTr = (isEnd && col !== 6) || (col === 6 && !hasRangeAbove);
+                                    const roundedBr = (isEnd && col !== 6) || (col === 6 && !hasRangeBelow);
+
+                                    roundingClasses = cn(
+                                        roundedTl && 'rounded-tl-[4px]',
+                                        roundedBl && 'rounded-bl-[4px]',
+                                        roundedTr && 'rounded-tr-[4px]',
+                                        roundedBr && 'rounded-br-[4px]'
+                                    );
+                                }
+
+                                return (
+                                    <div
+                                        key={idx}
+                                        onClick={() => cell.currentMonth && handleDayClick(cell.date)}
+                                        onDoubleClick={() => cell.currentMonth && handleDayDoubleClick(cell.date)}
+                                        className={cn(
+                                            'flex items-center justify-center h-[40px] text-[11px] transition-colors border-b border-border/10',
+                                            roundingClasses,
+                                            cell.currentMonth ? 'cursor-pointer' : 'cursor-default',
+                                            // Base text color
+                                            cell.currentMonth
+                                                ? 'text-foreground'
+                                                : 'text-muted-foreground/40',
+                                            // Range body (not edges)
+                                            cell.currentMonth && hasRange && inRange && !isEdge && 'bg-primary/15',
+                                            // Range edges (start/end)
+                                            cell.currentMonth && hasRange && isEdge && 'bg-primary text-white font-bold',
+                                            // Single day selection
+                                            cell.currentMonth && hasRange && isSingleDay && isStart && 'bg-primary text-white font-bold',
+                                            // Today ring (always visible as border when not selected as edge)
+                                            cell.currentMonth && isToday && !(hasRange && isEdge) && !(hasRange && isSingleDay && isStart) && 'ring-2 ring-primary ring-inset',
+                                            // Hover only for non-selected current-month cells
+                                            cell.currentMonth && !(hasRange && isEdge) && !(hasRange && isSingleDay && isStart) && 'hover:bg-muted/40',
+                                        )}
+                                    >
+                                        {cell.day}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 4. Footer: State Machine */}
+                <div className="bg-muted/5 shrink-0 overflow-hidden relative py-3" style={{ minHeight: '48px' }}>
+
+                    {/* Состояние 'idle' / 'expanded' - теперь они объединены */}
+                    {footerMode === 'idle' && (
+                        <div className="flex items-center justify-between h-[48px] px-1 absolute inset-0 w-full bg-muted/5">
+
+                            <div className="flex items-center h-full">
+                                {(calendarViewMode !== 'month' || hasRange) && (
+                                    <button
+                                        onClick={() => navigatePeriod(-1)}
+                                        className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground mr-0.5"
+                                        title="Предыдущий период (Квартал/Год)"
+                                    >
+                                        <ChevronsLeft className="w-4 h-4" />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => navigateView(-1)}
+                                    className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground"
+                                    title="Предыдущий месяц"
+                                >
+                                    <ChevronLeft className="w-4 h-4" />
                                 </button>
-                            )}
+                            </div>
+
+                            <div className="flex flex-1 items-center bg-white border border-border shadow-sm rounded-md mx-1 overflow-hidden h-[32px]">
+                                <button
+                                    onClick={() => setFooterMode('search')}
+                                    className="flex flex-1 items-center justify-center gap-1.5 px-2 hover:bg-muted/30 transition-colors text-[11px] font-medium text-muted-foreground h-full overflow-hidden"
+                                >
+                                    <Search className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate">Поиск...</span>
+                                </button>
+
+                                <div className="w-[1px] h-4 bg-border shrink-0" />
+
+                                <button
+                                    onClick={() => setFooterMode('range-picker')}
+                                    className="px-2 hover:bg-muted/30 transition-colors text-[11px] font-bold text-foreground h-full shrink-0 min-w-[44px]"
+                                >
+                                    {calendarViewMode === 'month' ? 'МЕС' : calendarViewMode === 'quarter' ? 'КВ' : 'ГОД'}
+                                </button>
+
+                                {hasRange && (
+                                    <>
+                                        <div className="w-[1px] h-4 bg-border shrink-0" />
+                                        <button
+                                            onClick={handleReset}
+                                            className="px-2 hover:bg-black/5 transition-colors text-muted-foreground shrink-0 h-full"
+                                            title="Сбросить фильтр дат"
+                                        >
+                                            <RotateCcw className="w-3 h-3" />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="flex items-center h-full">
+                                <button
+                                    onClick={() => navigateView(1)}
+                                    className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground mr-0.5"
+                                    title="Следующий месяц"
+                                >
+                                    <ChevronRight className="w-4 h-4" />
+                                </button>
+                                {(calendarViewMode !== 'month' || hasRange) && (
+                                    <button
+                                        onClick={() => navigatePeriod(1)}
+                                        className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground"
+                                        title="Следующий период (Квартал/Год)"
+                                    >
+                                        <ChevronsRight className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Состояние 'search' */}
+                    {footerMode === 'search' && (
+                        <div className="flex items-center h-[48px] px-2 absolute inset-0 w-full bg-muted/5">
                             <button
                                 onClick={() => navigateView(-1)}
-                                className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground"
-                                title="Предыдущий месяц"
+                                className="p-1.5 rounded hover:bg-black/5 transition-colors text-muted-foreground"
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </button>
-                        </div>
-
-                        <div className="flex flex-1 items-center bg-white border border-border shadow-sm rounded-md mx-1 overflow-hidden h-[32px]">
-                            <button
-                                onClick={() => setFooterMode('search')}
-                                className="flex flex-1 items-center justify-center gap-1.5 px-2 hover:bg-muted/30 transition-colors text-[11px] font-medium text-muted-foreground h-full overflow-hidden"
-                            >
-                                <Search className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate">Поиск...</span>
-                            </button>
-
-                            <div className="w-[1px] h-4 bg-border shrink-0" />
-
-                            <button
-                                onClick={() => setFooterMode('range-picker')}
-                                className="px-2 hover:bg-muted/30 transition-colors text-[11px] font-bold text-foreground h-full shrink-0 min-w-[44px]"
-                            >
-                                {calendarViewMode === 'month' ? 'МЕС' : calendarViewMode === 'quarter' ? 'КВ' : 'ГОД'}
-                            </button>
-
-                            {hasRange && (
-                                <>
-                                    <div className="w-[1px] h-4 bg-border shrink-0" />
+                            <div className="flex-1 relative flex items-center h-full px-2">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    placeholder="ДД.ММ.ГГ или 2 кв."
+                                    className="w-full text-xs h-[28px] px-2 pr-7 outline-none border border-border rounded shadow-inner"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') handleSearchSubmit();
+                                        else if (e.key === 'Escape') setFooterMode('idle');
+                                    }}
+                                />
+                                {searchQuery && (
                                     <button
-                                        onClick={handleReset}
-                                        className="px-2 hover:bg-black/5 transition-colors text-muted-foreground shrink-0 h-full"
-                                        title="Сбросить фильтр дат"
+                                        onClick={handleSearchSubmit}
+                                        className="absolute right-3.5 p-1 text-primary hover:text-primary/70"
                                     >
-                                        <RotateCcw className="w-3 h-3" />
+                                        <Search className="w-3.5 h-3.5" />
                                     </button>
-                                </>
-                            )}
-                        </div>
-
-                        <div className="flex items-center h-full">
+                                )}
+                            </div>
+                            <button
+                                onClick={() => setFooterMode('idle')}
+                                className="p-1.5 mr-1 rounded hover:bg-black/5 transition-colors text-muted-foreground"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
                             <button
                                 onClick={() => navigateView(1)}
-                                className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground mr-0.5"
-                                title="Следующий месяц"
+                                className="p-1.5 rounded hover:bg-black/5 transition-colors text-muted-foreground"
                             >
                                 <ChevronRight className="w-4 h-4" />
                             </button>
-                            {(calendarViewMode !== 'month' || hasRange) && (
+                        </div>
+                    )}
+
+                    {/* Состояние 'range-picker' */}
+                    {footerMode === 'range-picker' && (
+                        <div className="flex items-center h-[48px] px-3 absolute inset-0 w-full bg-muted/5 gap-2">
+                            <button
+                                onClick={() => setFooterMode('idle')}
+                                className="p-1.5 rounded hover:bg-black/5 transition-colors text-muted-foreground shrink-0"
+                                title="Отмена"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                            <div className="flex flex-1 rounded-md border border-border overflow-hidden bg-white shadow-sm">
                                 <button
-                                    onClick={() => navigatePeriod(1)}
-                                    className="p-1 rounded hover:bg-black/5 transition-colors text-muted-foreground"
-                                    title="Следующий период (Квартал/Год)"
+                                    onClick={() => handleViewModeChange('month')}
+                                    className={cn("flex-1 py-1 text-[11px] font-bold uppercase transition-colors border-r border-border", calendarViewMode === 'month' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted/30")}
                                 >
-                                    <ChevronsRight className="w-4 h-4" />
+                                    МЕСЯЦ
                                 </button>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* Состояние 'search' */}
-                {footerMode === 'search' && (
-                    <div className="flex items-center h-[48px] px-2 absolute inset-0 w-full bg-muted/5">
-                        <button
-                            onClick={() => navigateView(-1)}
-                            className="p-1.5 rounded hover:bg-black/5 transition-colors text-muted-foreground"
-                        >
-                            <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <div className="flex-1 relative flex items-center h-full px-2">
-                            <input
-                                autoFocus
-                                type="text"
-                                placeholder="ДД.ММ.ГГ или 2 кв."
-                                className="w-full text-xs h-[28px] px-2 pr-7 outline-none border border-border rounded shadow-inner"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') handleSearchSubmit();
-                                    else if (e.key === 'Escape') setFooterMode('idle');
-                                }}
-                            />
-                            {searchQuery && (
                                 <button
-                                    onClick={handleSearchSubmit}
-                                    className="absolute right-3.5 p-1 text-primary hover:text-primary/70"
+                                    onClick={() => handleViewModeChange('quarter')}
+                                    className={cn("flex-1 py-1 text-[11px] font-bold uppercase transition-colors border-r border-border", calendarViewMode === 'quarter' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted/30")}
                                 >
-                                    <Search className="w-3.5 h-3.5" />
+                                    КВАРТАЛ
                                 </button>
-                            )}
+                                <button
+                                    onClick={() => handleViewModeChange('year')}
+                                    className={cn("flex-1 py-1 text-[11px] font-bold uppercase transition-colors", calendarViewMode === 'year' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted/30")}
+                                >
+                                    ГОД
+                                </button>
+                            </div>
                         </div>
-                        <button
-                            onClick={() => setFooterMode('idle')}
-                            className="p-1.5 mr-1 rounded hover:bg-black/5 transition-colors text-muted-foreground"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                        <button
-                            onClick={() => navigateView(1)}
-                            className="p-1.5 rounded hover:bg-black/5 transition-colors text-muted-foreground"
-                        >
-                            <ChevronRight className="w-4 h-4" />
-                        </button>
-                    </div>
-                )}
+                    )}
 
-                {/* Состояние 'range-picker' */}
-                {footerMode === 'range-picker' && (
-                    <div className="flex items-center h-[48px] px-3 absolute inset-0 w-full bg-muted/5 gap-2">
-                        <button
-                            onClick={() => setFooterMode('idle')}
-                            className="p-1.5 rounded hover:bg-black/5 transition-colors text-muted-foreground shrink-0"
-                            title="Отмена"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                        <div className="flex flex-1 rounded-md border border-border overflow-hidden bg-white shadow-sm">
-                            <button
-                                onClick={() => handleViewModeChange('month')}
-                                className={cn("flex-1 py-1 text-[11px] font-bold uppercase transition-colors border-r border-border", calendarViewMode === 'month' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted/30")}
-                            >
-                                МЕСЯЦ
-                            </button>
-                            <button
-                                onClick={() => handleViewModeChange('quarter')}
-                                className={cn("flex-1 py-1 text-[11px] font-bold uppercase transition-colors border-r border-border", calendarViewMode === 'quarter' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted/30")}
-                            >
-                                КВАРТАЛ
-                            </button>
-                            <button
-                                onClick={() => handleViewModeChange('year')}
-                                className={cn("flex-1 py-1 text-[11px] font-bold uppercase transition-colors", calendarViewMode === 'year' ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted/30")}
-                            >
-                                ГОД
-                            </button>
-                        </div>
-                    </div>
-                )}
+                </div>
 
+            </div> {/* конец shrink-0 обертки для календаря+футера */}
+
+            {/* 4. Статистика - Занимает всю нижнюю часть через flex-1 */}
+            <div className="flex flex-col flex-1 min-h-[150px] bg-white">
+                <StatsInflowChart
+                    masters={filteredMasters}
+                    viewYear={viewYear}
+                    viewMonth={viewMonth}
+                    mode={calendarViewMode}
+                    dateRange={dateRange}
+                    rangeText={rangeText}
+                    onDrillDown={(mode, start, end) => {
+                        setCalendarViewMode(mode);
+                        setDateRange(start, end);
+                        setViewMonth(start.getMonth());
+                        setViewYear(start.getFullYear());
+                    }}
+                    onDrillUp={() => {
+                        // Strict Cascade: Day -> Week -> Month -> Quarter -> Year
+                        if (calendarViewMode === 'month') {
+                            if (dateRange.start && dateRange.end) {
+                                if (dateRange.start.getTime() === dateRange.end.getTime()) {
+                                    // Current: Day -> Target: Week
+                                    // Go back to the week covering this day
+                                    const d = dateRange.start;
+                                    const dayOfWeek = (d.getDay() + 6) % 7; // Mon=0 .. Sun=6
+                                    const weekStart = new Date(d);
+                                    weekStart.setDate(d.getDate() - dayOfWeek);
+                                    const weekEnd = new Date(weekStart);
+                                    weekEnd.setDate(weekStart.getDate() + 6);
+                                    setDateRange(weekStart, weekEnd);
+                                } else {
+                                    const diffDays = Math.round((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24));
+                                    if (diffDays === 6) {
+                                        // Current: Week -> Target: Month (entire viewMonth)
+                                        setDateRange(new Date(viewYear, viewMonth, 1), new Date(viewYear, viewMonth + 1, 0));
+                                    } else {
+                                        // Current: Month -> Target: Quarter
+                                        setCalendarViewMode('quarter');
+                                        const q = Math.floor(viewMonth / 3);
+                                        const qStartMonth = q * 3;
+                                        setDateRange(new Date(viewYear, qStartMonth, 1), new Date(viewYear, qStartMonth + 3, 0));
+                                    }
+                                }
+                            } else {
+                                // Fallback: Month -> Quarter
+                                setCalendarViewMode('quarter');
+                                const q = Math.floor(viewMonth / 3);
+                                const qStartMonth = q * 3;
+                                setDateRange(new Date(viewYear, qStartMonth, 1), new Date(viewYear, qStartMonth + 3, 0));
+                            }
+                        } else if (calendarViewMode === 'quarter') {
+                            // Current: Quarter -> Target: Year
+                            setCalendarViewMode('year');
+                            setDateRange(new Date(viewYear, 0, 1), new Date(viewYear, 11, 31));
+                        } else {
+                            // Target: Year
+                            setCalendarViewMode('year');
+                            setDateRange(new Date(viewYear, 0, 1), new Date(viewYear, 11, 31));
+                        }
+                    }}
+                />
             </div>
         </div>
     );

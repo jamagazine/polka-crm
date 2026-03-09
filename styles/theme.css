@@ -41,7 +41,7 @@
   --sidebar-ring: oklch(0.708 0 0);
   
   /* POLKA Custom Variables */
-  --polka-accent: #3b82f6;
+  --polka-accent: var(--primary);
   --polka-green: #10b981;
   --polka-gray: #6b7280;
   --polka-border: #e5e7eb;

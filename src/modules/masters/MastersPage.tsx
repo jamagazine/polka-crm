@@ -149,7 +149,7 @@ export function MastersPage() {
         masters, loadMasters,
         currentPage, setCurrentPage, pageSize,
         mastersFilter, mastersPrefs,
-        selectedIds, toggleSelection, clearSelection, setSelection, setAllFilteredIds,
+        selectedIds, toggleSelection, clearSelection, setSelection, setAllFilteredIds, setBaseFilteredIds,
         highlightedIds, clearHighlightedIds,
         mastersColumnOrder, setColumnOrder,
         setExportCallback,
@@ -175,6 +175,7 @@ export function MastersPage() {
         clearSelection: state.clearSelection,
         setSelection: state.setSelection,
         setAllFilteredIds: state.setAllFilteredIds,
+        setBaseFilteredIds: state.setBaseFilteredIds,
         highlightedIds: state.highlightedIds,
         clearHighlightedIds: state.clearHighlightedIds,
         mastersColumnOrder: state.mastersColumnOrder as string[],
@@ -388,19 +389,6 @@ export function MastersPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-
-    // Esc listener to clear selection and highlights
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                clearSelection();
-                clearHighlightedIds();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [clearSelection, clearHighlightedIds]);
-
     // DND Handlers
     const handleDragStart = (e: React.DragEvent, colId: string) => {
         setDraggedColId(colId);
@@ -489,7 +477,7 @@ export function MastersPage() {
             return null; // Сброс сортировки
         });
 
-    const filteredMasters = useMemo(() => {
+    const baseFilteredMasters = useMemo(() => {
         return masters.filter(master => {
             const isSys = isSystemContact(master.name);
             const isArchived = isSys ? false : !!master.isArchived;
@@ -534,21 +522,6 @@ export function MastersPage() {
                 if (!selectedIds.has(master._id)) return false;
             }
 
-            // ── Фильтр по календарному диапазону ──
-            if (dateRange.start && dateRange.end) {
-                if (!master.created) return false;
-                let ts = Number(master.created);
-                if (isNaN(ts) && typeof master.created === 'string') {
-                    ts = new Date(master.created).getTime();
-                } else if (ts > 0 && ts < 10000000000) {
-                    ts = ts * 1000;
-                }
-                if (!ts || isNaN(ts)) return false;
-                const rangeStart = dateRange.start.getTime();
-                const rangeEnd = dateRange.end.getTime() + 86399999; // end of day
-                if (ts < rangeStart || ts > rangeEnd) return false;
-            }
-
             if (activeSearchCol && debouncedSearchTerm) {
                 const term = debouncedSearchTerm;
                 const compareValue = getCellValue(master, activeSearchCol);
@@ -566,7 +539,28 @@ export function MastersPage() {
 
             return true;
         });
-    }, [masters, mastersFilter, activeSearchCol, debouncedSearchTerm, seniorityFilter, showOnlySelected, selectedIds, dateRange]);
+    }, [masters, mastersFilter, activeSearchCol, debouncedSearchTerm, seniorityFilter, showOnlySelected, selectedIds]);
+
+    const filteredMasters = useMemo(() => {
+        return baseFilteredMasters.filter(master => {
+            // ── Фильтр по календарному диапазону ──
+            if (dateRange.start && dateRange.end) {
+                if (!master.created) return false;
+                let ts = Number(master.created);
+                if (isNaN(ts) && typeof master.created === 'string') {
+                    ts = new Date(master.created).getTime();
+                } else if (ts > 0 && ts < 10000000000) {
+                    ts = ts * 1000;
+                }
+                if (!ts || isNaN(ts)) return false;
+                const rangeStart = dateRange.start.getTime();
+                const rangeEnd = dateRange.end.getTime() + 86399999; // end of day
+                if (ts < rangeStart || ts > rangeEnd) return false;
+            }
+
+            return true;
+        });
+    }, [baseFilteredMasters, dateRange]);
 
     // Обновляем счетчики только когда меняется отфильтрованный массив
     useEffect(() => {
@@ -773,10 +767,12 @@ export function MastersPage() {
     // Логика состояния чекбокса в заголовке
     const visibleIds = useMemo(() => paginatedMasters.map(m => m._id), [paginatedMasters]);
     const allFilteredIds = useMemo(() => filteredMasters.map(m => m._id), [filteredMasters]);
+    const baseIds = useMemo(() => baseFilteredMasters.map(m => m._id), [baseFilteredMasters]);
 
     useEffect(() => {
         setAllFilteredIds(allFilteredIds);
-    }, [allFilteredIds, setAllFilteredIds]);
+        setBaseFilteredIds(baseIds);
+    }, [allFilteredIds, baseIds, setAllFilteredIds, setBaseFilteredIds]);
 
     const isAllVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
     const isAllFilteredSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedIds.has(id));

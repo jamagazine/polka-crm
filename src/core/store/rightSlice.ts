@@ -11,6 +11,8 @@ export interface FooterCard {
 }
 
 export type CalendarViewMode = 'month' | 'quarter' | 'year';
+export type FooterMode = 'idle' | 'search' | 'range-picker' | 'expanded';
+export type RightTab = 'context' | 'calendar' | 'settings';
 
 export interface DateRange {
     start: Date | null;
@@ -22,11 +24,20 @@ export interface RightSlice {
     activeRightCardId: string;
     dateRange: DateRange;
     calendarViewMode: CalendarViewMode;
+    footerMode: FooterMode;
+    viewMonth: number;
+    viewYear: number;
+    activeRightTab: RightTab;
 
     setRightFooterCards: (cards: FooterCard[]) => void;
     setActiveRightCard: (id: string) => void;
     setDateRange: (start: Date | null, end: Date | null) => void;
     setCalendarViewMode: (mode: CalendarViewMode) => void;
+    setFooterMode: (mode: FooterMode) => void;
+    setViewMonth: (month: number) => void;
+    setViewYear: (year: number) => void;
+    setActiveRightTab: (tab: RightTab) => void;
+    resetCalendar: () => void;
 }
 
 /* ─── Фабрика слайса ─── */
@@ -40,6 +51,10 @@ export const createRightSlice = (
     activeRightCardId: 'calendar',
     dateRange: { start: null, end: null },
     calendarViewMode: 'month',
+    footerMode: 'idle',
+    viewMonth: today().getMonth(),
+    viewYear: today().getFullYear(),
+    activeRightTab: 'calendar',
 
     setRightFooterCards: (cards) =>
         set((s) => {
@@ -55,4 +70,23 @@ export const createRightSlice = (
     setDateRange: (start, end) => set(() => ({ dateRange: { start, end } })),
 
     setCalendarViewMode: (mode) => set(() => ({ calendarViewMode: mode })),
+
+    setFooterMode: (mode) => set(() => ({ footerMode: mode })),
+
+    setViewMonth: (month) => set(() => ({ viewMonth: month })),
+
+    setViewYear: (year) => set(() => ({ viewYear: year })),
+
+    setActiveRightTab: (tab) => set(() => ({ activeRightTab: tab })),
+
+    resetCalendar: () => set(() => {
+        const now = new Date();
+        return {
+            dateRange: { start: null, end: null },
+            calendarViewMode: 'month',
+            viewMonth: now.getMonth(),
+            viewYear: now.getFullYear(),
+            footerMode: 'idle',
+        };
+    })
 });

@@ -43,20 +43,20 @@ export function PageSelector({ currentPage, totalPages, onPageChange }: PageSele
 
   const getPageList = () => {
     const pages: number[] = [];
-    
+
     // Добавляем первые страницы
     for (let i = 1; i <= Math.min(5, totalPages); i++) {
       pages.push(i);
     }
-    
+
     // Добавляем десятки
     for (let i = 10; i <= totalPages; i += 10) {
       if (!pages.includes(i)) pages.push(i);
     }
-    
+
     // Добавляем последнюю
     if (!pages.includes(totalPages)) pages.push(totalPages);
-    
+
     return pages.sort((a, b) => a - b);
   };
 
@@ -108,9 +108,8 @@ export function PageSelector({ currentPage, totalPages, onPageChange }: PageSele
             {filteredPages.map((page) => (
               <button
                 key={page}
-                className={`w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-sm flex items-center justify-between ${
-                  page === currentPage ? 'bg-blue-50' : ''
-                }`}
+                className={`w-full px-4 py-2 text-left hover:bg-gray-50 transition-colors text-sm flex items-center justify-between ${page === currentPage ? 'bg-gray-100 font-medium' : ''
+                  }`}
                 onClick={() => {
                   onPageChange(page);
                   setIsOpen(false);

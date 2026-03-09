@@ -60,6 +60,8 @@ export interface DataSlice {
     clearSelection: () => void;
     setSelection: (ids: Set<string>) => void;
     setAllFilteredIds: (ids: string[]) => void;
+    baseFilteredIds: string[];
+    setBaseFilteredIds: (ids: string[]) => void;
     selectAllFiltered: () => void;
 
     // ─── Подсветка из поиска (отдельно от чекбоксов) ─────────────────────────
@@ -162,6 +164,8 @@ export const createDataSlice = (
     clearSelection: () => set(() => ({ selectedIds: new Set() })),
     setSelection: (ids) => set(() => ({ selectedIds: ids })),
     setAllFilteredIds: (ids) => set(() => ({ allFilteredIds: ids })),
+    baseFilteredIds: [],
+    setBaseFilteredIds: (ids) => set(() => ({ baseFilteredIds: ids })),
     selectAllFiltered: () => set((s) => ({ selectedIds: new Set(s.allFilteredIds) })),
 
     highlightedIds: new Set(),
@@ -219,12 +223,27 @@ export const createDataSlice = (
         if (page === 'products') return { productsColumnOrder: order, activePresetId: newActivePresetId };
         return {};
     }),
-    resetColumnOrder: (page) => set(() => {
-        if (page === 'masters') return { mastersColumnOrder: [] };
-        if (page === 'warehouse') return { warehouseColumnOrder: [] };
-        if (page === 'products') return { productsColumnOrder: [] };
+    resetColumnOrder: (page) => set((s) => {
+        if (page === 'masters') return {
+            mastersColumnOrder: [],
+            hiddenColumns: { ...s.hiddenColumns, masters: [] } as Record<string, string[]>,
+            activePresetId: { ...s.activePresetId, masters: null } as Record<string, string | null>
+        };
+        if (page === 'warehouse') return {
+            warehouseColumnOrder: [],
+            hiddenColumns: { ...s.hiddenColumns, warehouse_folders: [], warehouse_items: [] } as Record<string, string[]>,
+            activePresetId: { ...s.activePresetId, warehouse_folder: null, warehouse_item: null } as Record<string, string | null>
+        };
+        if (page === 'products') return {
+            productsColumnOrder: [],
+            hiddenColumns: { ...s.hiddenColumns, products: [] } as Record<string, string[]>
+        };
         // If no page provided, reset all
-        return { mastersColumnOrder: [], warehouseColumnOrder: [], productsColumnOrder: [] };
+        return {
+            mastersColumnOrder: [], warehouseColumnOrder: [], productsColumnOrder: [],
+            hiddenColumns: { masters: [], warehouse_folders: [], warehouse_items: [], products: [] } as Record<string, string[]>,
+            activePresetId: { warehouse_item: null, warehouse_folder: null, masters: null } as Record<string, string | null>
+        };
     }),
 
     // ─── Пресеты: экшены ─────────────────────────────────────────────

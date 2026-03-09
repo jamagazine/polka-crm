@@ -44,7 +44,7 @@ export function WarehousePage() {
         catalog, isParsing, loadCatalog,
         warehouseRootPage, setWarehouseRootPage, warehouseView, setWarehouseView,
         setWarehouseFolderId,
-        selectedIds, toggleSelection, clearSelection, setSelection, setAllFilteredIds,
+        selectedIds, toggleSelection, clearSelection, setSelection, setAllFilteredIds, setBaseFilteredIds,
         highlightedIds, clearHighlightedIds,
         warehousePrefs, warehouseColumnOrder, setColumnOrder,
         setExportCallback,
@@ -73,6 +73,7 @@ export function WarehousePage() {
         clearSelection: state.clearSelection,
         setSelection: state.setSelection,
         setAllFilteredIds: state.setAllFilteredIds,
+        setBaseFilteredIds: state.setBaseFilteredIds,
         highlightedIds: state.highlightedIds,
         clearHighlightedIds: state.clearHighlightedIds,
         warehousePrefs: state.warehousePrefs,
@@ -783,6 +784,81 @@ export function WarehousePage() {
         return result;
     }, [catalog, viewMode, currentFolderId, activeSearchCol, debouncedSearchTerm, statusFilter, showOnlySelected, selectedIds, dateRange, masters]);
 
+    const baseFilteredData = useMemo(() => {
+        return catalog.filter(item => {
+            let visible = false;
+
+            if (viewMode === 'flat') {
+                visible = !item.isFolder;
+            } else {
+                if (currentFolderId === null) {
+                    visible = item.parentId === "";
+                } else {
+                    visible = String(item.parentId) === String(currentFolderId);
+                }
+            }
+
+            if (!visible) return false;
+
+            if (statusFilter) {
+                const purchase = item.purchase || item.cost || item.purchasePrice || 0;
+                const price = item.price || 0;
+
+                if (item.isFolder) {
+                    if (statusFilter === 'minus' && !(item.minusesCount && item.minusesCount > 0)) return false;
+                    if (statusFilter === 'money' && !(item.moneyIssuesCount && item.moneyIssuesCount > 0)) return false;
+                    if (statusFilter === 'stock' && !(item.zeroStockCount && item.zeroStockCount > 0)) return false;
+                    if (statusFilter === 'multi') {
+                        const folderIssueTypes = ((item.minusesCount ?? 0) > 0 ? 1 : 0) + ((item.moneyIssuesCount ?? 0) > 0 ? 1 : 0) + ((item.zeroStockCount ?? 0) > 0 ? 1 : 0);
+                        if (folderIssueTypes < 2) return false;
+                    }
+                } else {
+                    if (statusFilter === 'minus' && !(item.stock < 0)) return false;
+                    if (statusFilter === 'money' && !(purchase <= 0 || price <= 0 || price <= purchase)) return false;
+                    if (statusFilter === 'stock' && !(item.stock === 0)) return false;
+
+                    if (statusFilter === 'multi') {
+                        const hasMinuses = item.stock < 0;
+                        const hasMoneyIssues = purchase <= 0 || price <= 0 || price <= purchase;
+                        const hasZeroes = item.stock === 0;
+                        const errorsCount = (hasMinuses ? 1 : 0) + (hasMoneyIssues ? 1 : 0) + (hasZeroes ? 1 : 0);
+                        if (errorsCount < 2) return false;
+                    }
+                }
+            }
+
+            if (showOnlySelected && selectedIds.size > 0) {
+                if (!selectedIds.has(item._id)) return false;
+            }
+
+            if (effectiveSearchTerm) {
+                if (activeSearchCol) {
+                    let compareValue = '';
+                    switch (activeSearchCol) {
+                        case 'name': compareValue = item.name ?? ''; break;
+                        case 'category': compareValue = item.category ?? ''; break;
+                        case 'code': compareValue = item.code ?? ''; break;
+                        case 'article': compareValue = item.article ?? ''; break;
+                        case 'barcode': compareValue = item.barcode ?? ''; break;
+                    }
+
+                    if (!compareValue.toLowerCase().includes(effectiveSearchTerm)) {
+                        return false;
+                    }
+                } else {
+                    const match = (item.name?.toLowerCase().includes(effectiveSearchTerm)) ||
+                        (item.code?.toLowerCase().includes(effectiveSearchTerm)) ||
+                        (item.article?.toLowerCase().includes(effectiveSearchTerm)) ||
+                        (item.barcode?.toLowerCase().includes(effectiveSearchTerm)) ||
+                        (item.category?.toLowerCase().includes(effectiveSearchTerm));
+                    if (!match) return false;
+                }
+            }
+
+            return true;
+        });
+    }, [catalog, viewMode, currentFolderId, activeSearchCol, debouncedSearchTerm, statusFilter, showOnlySelected, selectedIds]);
+
     // ── Ренейм особых папок "на лету" ──
     const getDisplayName = (item: typeof catalog[0]) => {
         if (!item.isFolder || currentFolderId !== null) return item.name;
@@ -1104,6 +1180,7 @@ export function WarehousePage() {
     // Логика состояния чекбокса в заголовке
     const visibleIds = useMemo(() => sortedData.map(d => d._id), [sortedData]);
     const allFilteredIds = useMemo(() => filteredData.map(d => d._id), [filteredData]);
+    const baseIds = useMemo(() => baseFilteredData.map(d => d._id), [baseFilteredData]);
 
     // DND Handlers
     const handleDragStart = (e: React.DragEvent, colId: string) => {
@@ -1182,7 +1259,8 @@ export function WarehousePage() {
 
     useEffect(() => {
         setAllFilteredIds(allFilteredIds);
-    }, [allFilteredIds, setAllFilteredIds]);
+        setBaseFilteredIds(baseIds);
+    }, [allFilteredIds, baseIds, setAllFilteredIds, setBaseFilteredIds]);
 
     const isAllVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
     const isAllFilteredSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedIds.has(id));

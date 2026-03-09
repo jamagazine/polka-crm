@@ -47,7 +47,11 @@ export function WorkArea() {
     totalRows, isParsing, parseProgress, isLoading,
     pageSize, setPageSize,
     lastMastersSync, lastCatalogSync,
-    selectedIds, selectAllFiltered, clearSelection
+    selectedIds, selectAllFiltered, clearSelection,
+    footerMode, setFooterMode,
+    dateRange, setDateRange,
+    activeRightTab, setActiveRightTab,
+    resetColumnOrder
   } = usePanelStore(useShallow(state => ({
     pageContext: state.pageContext,
     focusItem: state.focusItem,
@@ -68,7 +72,14 @@ export function WorkArea() {
     lastCatalogSync: state.lastCatalogSync,
     selectedIds: state.selectedIds,
     selectAllFiltered: state.selectAllFiltered,
-    clearSelection: state.clearSelection
+    clearSelection: state.clearSelection,
+    footerMode: state.footerMode,
+    setFooterMode: state.setFooterMode,
+    dateRange: state.dateRange,
+    setDateRange: state.setDateRange,
+    activeRightTab: state.activeRightTab,
+    setActiveRightTab: state.setActiveRightTab,
+    resetColumnOrder: state.resetColumnOrder
   })));
 
   const navigate = useNavigate();
@@ -76,6 +87,9 @@ export function WorkArea() {
   const isMobile = useBreakpoint(768);
 
   const isWarehouse = location.pathname.includes('warehouse');
+  const isProducts = location.pathname.includes('products');
+  const isItemView = isWarehouse && (folderTree !== null /* heuristic */); // We will define proper pageType locally
+
   const syncTime = isWarehouse ? lastCatalogSync : lastMastersSync;
 
   const lastSyncText = useMemo(() => {
@@ -114,7 +128,7 @@ export function WorkArea() {
     return () => document.removeEventListener('mousedown', close);
   }, [burgerOpen]);
 
-  /* ── Hotkey: Сброс выделения по Escape ── */
+  /* ── Hotkey: Глобальный иерархический Escape ── */
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Игнорируем, если фокус находится в поле ввода (input, textarea)
@@ -122,14 +136,57 @@ export function WorkArea() {
       if (['INPUT', 'TEXTAREA'].includes(target.tagName)) return;
       if (target.isContentEditable) return;
 
-      if (e.key === 'Escape' && selectedIds && selectedIds.size > 0) {
-        clearSelection();
+      if (e.key === 'Escape') {
+        const hasSelection = selectedIds && selectedIds.size > 0;
+        const hasFooterAction = footerMode !== 'idle';
+        const hasDateRange = dateRange.start !== null || dateRange.end !== null;
+        const hasRightTab = activeRightTab !== 'context';
+
+        // 1. Слой: Сброс выделения
+        if (hasSelection) {
+          e.preventDefault();
+          e.stopPropagation();
+          clearSelection();
+          return;
+        }
+
+        // 2. Слой: Сброс режима футера календаря (Поиск/Выбор)
+        if (hasFooterAction) {
+          e.preventDefault();
+          e.stopPropagation();
+          setFooterMode('idle');
+          return;
+        }
+
+        // 3. Слой: Сброс дат в календаре (и, возможно, Drill-down статистики, если он завязан на те же даты)
+        if (hasDateRange) {
+          e.preventDefault();
+          e.stopPropagation();
+          setDateRange(null, null);
+          return;
+        }
+
+        // 4. Слой: Сброс колонок во вкладке "Инструменты" (settings)
+        if (activeRightTab === 'settings') {
+          e.preventDefault();
+          e.stopPropagation();
+          const pageType = location.pathname.includes('masters') || location.pathname === '/'
+            ? 'masters'
+            : (location.pathname.includes('products') ? 'products' : 'warehouse');
+          resetColumnOrder(pageType);
+          return;
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedIds, clearSelection]);
+  }, [
+    selectedIds, clearSelection,
+    footerMode, setFooterMode,
+    dateRange, setDateRange,
+    activeRightTab, setActiveRightTab, resetColumnOrder, location.pathname
+  ]);
 
   /* ── Рендер правых экшенов ── */
   const renderActions = () => {
