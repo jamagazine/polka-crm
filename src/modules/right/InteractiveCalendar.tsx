@@ -387,16 +387,6 @@ export function InteractiveCalendar() {
 
     return (
         <div className="flex flex-col select-none h-full bg-white relative">
-            {/* 1. Верхняя информационная панель (Header) */}
-            <div className="flex flex-col items-center justify-center h-[54px] bg-muted/5 border-b border-border/50 shrink-0">
-                <span className="text-sm font-semibold text-foreground">
-                    {MONTH_NAMES[viewMonth]} {viewYear}
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground/80 mt-0.5">
-                    {rangeText}
-                </span>
-            </div>
-
             {/* 2. Центральная область (Grid & Chart) */}
             <div className="flex flex-col shrink-0 overflow-visible w-full">
                 {/* Внутренний контейнер для Календаря и Футера без flex-grow (чтобы не расталкивать) */}

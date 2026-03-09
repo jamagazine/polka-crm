@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Settings, Wrench, ChevronRight, ChevronLeft, FileText, CaseSensitive, WrapText, Download, RotateCcw, Filter, Columns, ChevronDown, AlertTriangle } from 'lucide-react';
+import { getFormattedRangeText } from '../../modules/right/statsHelper';
 import { useLocation } from 'react-router';
 import { useShallow } from 'zustand/react/shallow';
 import { usePanelStore } from '../../core/store';
@@ -12,6 +13,7 @@ import { Checkbox } from '../ui/checkbox';
 import { SystemSettingsOverlay } from './SystemSettingsOverlay';
 import { InteractiveCalendar } from '../../modules/right/InteractiveCalendar';
 import { type RightTab } from '../../core/store/rightSlice';
+import { ActionModal } from '../common/ActionModal';
 
 export function RightPanel() {
   const {
@@ -27,7 +29,8 @@ export function RightPanel() {
     hiddenColumns, toggleHiddenColumn,
     warehouseFolderId, warehouseView,
     columnPresets, activePresetId, applyPreset, savePreset, deletePreset,
-    activeRightTab, setActiveRightTab
+    activeRightTab, setActiveRightTab,
+    dateRange, calendarViewMode, viewMonth, viewYear
   } = usePanelStore(useShallow(state => ({
     contextCollapsed: state.contextCollapsed,
     toggleContext: state.toggleContext,
@@ -59,7 +62,11 @@ export function RightPanel() {
     savePreset: state.savePreset,
     deletePreset: state.deletePreset,
     activeRightTab: state.activeRightTab,
-    setActiveRightTab: state.setActiveRightTab
+    setActiveRightTab: state.setActiveRightTab,
+    dateRange: state.dateRange,
+    calendarViewMode: state.calendarViewMode,
+    viewMonth: state.viewMonth,
+    viewYear: state.viewYear
   })));
 
   const isCollapsed = contextCollapsed;
@@ -104,6 +111,11 @@ export function RightPanel() {
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const [systemOverlayOpen, setSystemOverlayOpen] = useState(false);
 
+  // Modal States
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [presetSaveModalOpen, setPresetSaveModalOpen] = useState(false);
+  const [presetSaveName, setPresetSaveName] = useState('');
+  const [presetDeleteModalOpen, setPresetDeleteModalOpen] = useState<{ isOpen: boolean, id: string, name: string }>({ isOpen: false, id: '', name: '' });
 
 
   // Списки колонок для разных режимов
@@ -134,10 +146,6 @@ export function RightPanel() {
   const MASTERS_COLS = [
     { id: 'name', label: 'Наименование' },
     { id: 'status', label: 'Стаж' },
-    { id: 'skuCount', label: 'Позиций' },
-    { id: 'totalValue', label: 'Сумма' },
-    { id: 'moneyIssuesCount', label: 'Ошибки цен' },
-    { id: 'zeroStockCount', label: 'Ошибки склада' },
     { id: 'category', label: 'Категория' },
     { id: 'phone', label: 'Телефон' },
     { id: 'payment', label: 'Оплата' },
@@ -161,36 +169,16 @@ export function RightPanel() {
         );
       case 'settings':
         return (
-          <div className="px-4 pb-4 flex flex-col gap-5">
-
-            {/* ═══ Заголовок + Система ═══ */}
-            <div className="flex items-center justify-between h-[50px] border-b border-border/50 -mx-4 px-4 mb-2">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">🔧 Инструменты</h3>
-              <button
-                onClick={() => setSystemOverlayOpen(true)}
-                className={cn(
-                  "p-1.5 rounded-md border transition-colors",
-                  systemOverlayOpen
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-white text-muted-foreground hover:bg-muted/50"
-                )}
-                title="Системные настройки"
-              >
-                <Settings className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-
+          <div className="px-4 pb-4 flex flex-col gap-5 pt-3">
 
             {/* ═══ Секция: ВИД ТАБЛИЦЫ ═══ */}
             <div className="flex flex-col gap-2">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Вид таблицы</span>
 
               {/* Сегмент строк */}
               <div className="flex rounded-md border border-border overflow-hidden">
                 <SegmentButton
                   icon={<FileText className="w-3.5 h-3.5" />}
-                  label="Ориг."
+                  label="Оригинал"
                   active={currentPrefs.showRawNames}
                   onClick={() => updateCurrentPrefs({ showRawNames: !currentPrefs.showRawNames })}
                 />
@@ -222,67 +210,65 @@ export function RightPanel() {
 
                 return (
                   <div className="flex flex-col gap-1.5 mt-1">
-                    <span className="text-[10px] text-muted-foreground uppercase opacity-80 pl-1">Пресеты колонок</span>
-                    <select
-                      value={currentActiveId}
-                      onChange={(e) => {
-                        if (e.target.value) applyPreset(presetKey, e.target.value);
-                      }}
-                      className="w-full h-8 px-2 text-xs rounded-md border border-border bg-white text-foreground focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-pointer"
-                    >
-                      <option value="" disabled>— Выберите пресет —</option>
-                      {presets.filter(p => p.isDefault).map(p => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                      {presets.some(p => !p.isDefault) && (
-                        <optgroup label="Мои пресеты">
-                          {presets.filter(p => !p.isDefault).map(p => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
+                    <span className="text-[10px] text-muted-foreground uppercase opacity-80 pl-1 mb-0.5">Пресеты колонок</span>
+                    <div className="flex items-center h-[34px] rounded-md border border-border overflow-hidden bg-white shadow-sm w-full divide-x divide-border">
+                      <select
+                        value={currentActiveId}
+                        onChange={(e) => {
+                          if (e.target.value) applyPreset(presetKey, e.target.value);
+                        }}
+                        className="flex-1 h-full px-2 text-xs bg-transparent text-foreground focus:outline-none cursor-pointer truncate"
+                      >
+                        <option value="" disabled>— Выберите —</option>
+                        {presets.filter(p => p.isDefault).map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                        {presets.some(p => !p.isDefault) && (
+                          <optgroup label="Мои пресеты">
+                            {presets.filter(p => !p.isDefault).map(p => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+
+                      <button
+                        onClick={() => {
+                          setResetModalOpen(true);
+                        }}
+                        className="w-[34px] h-full flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors shrink-0"
+                        title="Сбросить вид"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setPresetSaveName('');
+                          setPresetSaveModalOpen(true);
+                        }}
+                        className="w-[34px] h-full flex items-center justify-center text-muted-foreground hover:bg-blue-50 hover:text-blue-600 transition-colors shrink-0"
+                        title="Сохранить текущий набор колонок как пресет"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
                     {isUserPreset && (
                       <button
                         onClick={() => {
-                          if (window.confirm(`Удалить пресет "${activePreset.name}"?`)) {
-                            deletePreset(presetKey, activePreset.id);
-                          }
+                          setPresetDeleteModalOpen({
+                            isOpen: true,
+                            id: activePreset.id,
+                            name: activePreset.name
+                          });
                         }}
-                        className="flex items-center justify-center gap-1.5 text-xs h-7 w-full rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors"
+                        className="flex items-center justify-center gap-1.5 text-xs h-7 w-full rounded-md border border-red-200 bg-red-50 text-red-500 hover:bg-red-100 transition-colors mt-1"
                         title="Удалить выбранный пресет"
                       >
                         🗑️ Удалить «{activePreset.name}»
                       </button>
                     )}
-                    <div className="flex items-center w-full rounded-md border border-border overflow-hidden h-9 mt-1 shadow-sm">
-                      <button
-                        onClick={() => {
-                          const confirmed = window.confirm("Сбросить порядок колонок для этой страницы?");
-                          if (confirmed) {
-                            const pageType = isWarehousePage ? 'warehouse' : (isProductsPage ? 'products' : 'masters');
-                            resetColumnOrder(pageType);
-                          }
-                        }}
-                        className="flex-1 h-full flex items-center justify-center gap-2 text-[11px] font-semibold bg-white text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-all border-r border-border"
-                        title="Сбросить порядок колонок"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                        СБРОСИТЬ
-                      </button>
-                      <button
-                        onClick={() => {
-                          const name = window.prompt("Введите название пресета:");
-                          if (!name || name.trim() === '') return;
-                          savePreset(presetKey, name.trim(), allColsBase.map(c => c.id));
-                        }}
-                        className="flex-1 h-full flex items-center justify-center gap-2 text-[11px] font-semibold bg-white text-muted-foreground hover:bg-blue-50 hover:text-blue-600 transition-all"
-                        title="Сохранить текущий набор колонок как пресет"
-                      >
-                        <Download className="w-3.5 h-3.5 opacity-70" />
-                        СОХРАНИТЬ
-                      </button>
-                    </div>
                   </div>
                 );
               })()}
@@ -295,8 +281,8 @@ export function RightPanel() {
                   columnsMenuOpen
                     ? "border-primary bg-primary/5 text-primary"
                     : currentHidden.length > 0
-                      ? "border-amber-200 bg-amber-50/50 text-amber-700 hover:bg-amber-100"
-                      : "border-blue-200 bg-blue-50/50 text-blue-600 hover:bg-blue-100/80"
+                      ? "border-border bg-muted/50 text-foreground hover:bg-muted"
+                      : "border-border bg-white text-foreground hover:bg-muted/30"
                 )}
                 title="Скрыть/показать отдельные колонки"
               >
@@ -476,9 +462,9 @@ export function RightPanel() {
       </header>
 
       {/* Content area */}
-      <div className="flex-1 overflow-y-auto" style={{ backgroundColor: CSS.bgLight }}>
+      <div className="flex-1 overflow-y-auto flex flex-col" style={{ backgroundColor: CSS.bgLight }}>
         {isCollapsed ? (
-          <div className="flex flex-col gap-1 p-2">
+          <div className="flex flex-col gap-1 p-2 overflow-y-auto">
             {navButtons.map((btn, idx) => (
               <button
                 key={idx}
@@ -491,7 +477,19 @@ export function RightPanel() {
             ))}
           </div>
         ) : (
-          renderContent()
+          <div className="flex flex-col h-full bg-white">
+            <LiveClockHeader
+              dateRange={dateRange}
+              calendarViewMode={calendarViewMode}
+              viewMonth={viewMonth}
+              viewYear={viewYear}
+              isToolsMode={activeRightTab === 'settings'}
+              onSettingsClick={() => setSystemOverlayOpen(true)}
+            />
+            <div className="flex-1 overflow-y-auto w-full">
+              {renderContent()}
+            </div>
+          </div>
         )}
       </div>
 
@@ -554,6 +552,52 @@ export function RightPanel() {
       )}
       {/* SystemSettingsOverlay */}
       <SystemSettingsOverlay open={systemOverlayOpen} onClose={() => setSystemOverlayOpen(false)} isWarehousePage={isWarehousePage} isMastersPage={isMastersPage} isItemView={isItemView} />
+
+      {/* Action Modals */}
+      <ActionModal
+        isOpen={resetModalOpen}
+        onClose={() => setResetModalOpen(false)}
+        title="Сбросить вид?"
+        description="Порядок и видимость колонок вернутся к стандартным настройкам для этой страницы."
+        confirmText="Сбросить вид"
+        isDestructive
+        onConfirm={() => {
+          const pageType = isWarehousePage ? 'warehouse' : (isProductsPage ? 'products' : 'masters');
+          resetColumnOrder(pageType);
+          setResetModalOpen(false);
+        }}
+      />
+
+      <ActionModal
+        isOpen={presetSaveModalOpen}
+        onClose={() => setPresetSaveModalOpen(false)}
+        title="Название пресета"
+        inputPlaceholder="Введите название..."
+        inputValue={presetSaveName}
+        onInputChange={setPresetSaveName}
+        confirmText="Сохранить"
+        onConfirm={() => {
+          if (!presetSaveName.trim()) return;
+          const presetKey = isMastersPage ? 'masters' : (isItemView || isProductsPage ? 'warehouse_item' : 'warehouse_folder');
+          const allColsBase = isMastersPage ? MASTERS_COLS : (isItemView ? ITEM_COLS : FOLDER_COLS);
+          savePreset(presetKey, presetSaveName.trim(), allColsBase.map(c => c.id));
+          setPresetSaveModalOpen(false);
+          setPresetSaveName('');
+        }}
+      />
+
+      <ActionModal
+        isOpen={presetDeleteModalOpen.isOpen}
+        onClose={() => setPresetDeleteModalOpen({ isOpen: false, id: '', name: '' })}
+        title={`Удалить пресет "${presetDeleteModalOpen.name}"?`}
+        confirmText="Удалить"
+        isDestructive
+        onConfirm={() => {
+          const presetKey = isMastersPage ? 'masters' : (isItemView || isProductsPage ? 'warehouse_item' : 'warehouse_folder');
+          deletePreset(presetKey, presetDeleteModalOpen.id);
+          setPresetDeleteModalOpen({ isOpen: false, id: '', name: '' });
+        }}
+      />
     </aside>
   );
 }
@@ -613,5 +657,89 @@ function SegmentButton({
       <span className="leading-none">{icon}</span>
       <span className="leading-none">{label}</span>
     </button>
+  );
+}
+
+/* ── LiveClockHeader ── */
+export function LiveClockHeader({
+  dateRange,
+  calendarViewMode,
+  viewMonth,
+  viewYear,
+  isToolsMode,
+  onSettingsClick,
+}: {
+  dateRange: any;
+  calendarViewMode: any;
+  viewMonth: number;
+  viewYear: number;
+  isToolsMode: boolean;
+  onSettingsClick?: () => void;
+}) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const MONTHS_GENITIVE = [
+    'Марта', 'Февраля', 'Марта', 'Апреля', 'Мая', 'Июня',
+    'Июля', 'Августа', 'Сентября', 'Октября', 'Ноября', 'Декабря'
+  ];
+  MONTHS_GENITIVE[0] = 'Января'; // Corrected the first element, was copying error
+
+  const d = now.getDate();
+  const monthName = MONTHS_GENITIVE[now.getMonth()];
+  const y = now.getFullYear();
+  const dateStr = `${d} ${monthName} ${y}`;
+
+  const hh = now.getHours().toString().padStart(2, '0');
+  const mm = now.getMinutes().toString().padStart(2, '0');
+  const ss = now.getSeconds().toString().padStart(2, '0');
+  const timeStr = `${hh}:${mm}:${ss}`;
+
+  const hasRange = dateRange.start !== null;
+
+  const MONTH_NAMES = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+  ];
+
+  const rangeText = hasRange ? getFormattedRangeText(calendarViewMode, viewMonth, viewYear, dateRange) : '';
+
+  return (
+    <div className="flex items-center justify-between h-[54px] bg-muted/5 border-b border-border/50 shrink-0 px-4 relative">
+      <div className="flex flex-col flex-1 items-center justify-center relative w-full h-full">
+        {!hasRange ? (
+          <>
+            <span className="text-sm font-semibold text-foreground">
+              {dateStr}
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground/80 mt-0.5 tabular-nums">
+              {timeStr}
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="text-sm font-semibold text-foreground">
+              {MONTH_NAMES[viewMonth]} {viewYear}
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground/80 mt-0.5">
+              {rangeText}
+            </span>
+          </>
+        )}
+      </div>
+      {isToolsMode && onSettingsClick && (
+        <button
+          onClick={onSettingsClick}
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+          title="Системные настройки"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+      )}
+    </div>
   );
 }
