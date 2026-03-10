@@ -1,6 +1,7 @@
 import React, { useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Package, Folder, FolderCog, FolderTree, ChevronRight, CheckSquare, MinusSquare, Square, TriangleAlert, Check } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Package, Folder, FolderCog, FolderTree, ChevronRight, CheckSquare, MinusSquare, Square, TriangleAlert, Check, X, Trash2 } from 'lucide-react';
 import { Checkbox } from '../ui/checkbox';
 import { cn } from '../ui/utils';
 import {
@@ -21,6 +22,9 @@ import type { ColDef, ColId, SortDir } from '../../core/types/table'; export int
     isAllVisibleSelected: boolean;
     isAllFilteredSelected: boolean;
     handleHeaderCheckClick: () => void;
+    clearSelection?: () => void;
+    selectAllFiltered?: () => void;
+    allFilteredCount?: number;
     highlightedIds: Set<string>;
     clearHighlightedIds: () => void;
     wordWrap: boolean;
@@ -325,6 +329,9 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
         getDisplayName,
         getCellValue,
         startIndex = 0,
+        clearSelection,
+        selectAllFiltered,
+        allFilteredCount = 0,
     } = props;
 
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -375,7 +382,7 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
     const totalSize = virtualizer.getTotalSize();
 
     return (
-        <div className="flex-1 w-full h-full flex flex-col">
+        <div className="flex-1 w-full h-full flex flex-col relative">
             <div
                 ref={scrollRef}
                 className="flex-1 w-full h-full overflow-x-auto overflow-y-auto"
@@ -506,6 +513,38 @@ export function VirtualSmartTable(props: VirtualSmartTableProps) {
                     </div>
                 )}
             </div>
+
+            {/* ── Selection Bar ── */}
+            <AnimatePresence>
+                {selectedIds.size > 0 && clearSelection && (
+                    <motion.div
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 50, opacity: 0 }}
+                        className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 px-4 py-2 bg-slate-900 text-slate-50 rounded-lg shadow-xl"
+                    >
+                        <span className="text-sm font-medium whitespace-nowrap">
+                            Выбрано: {selectedIds.size}
+                        </span>
+
+                        {selectAllFiltered && selectedIds.size < allFilteredCount && (
+                            <button
+                                onClick={selectAllFiltered}
+                                className="text-sm text-white hover:text-slate-200 transition-colors whitespace-nowrap font-medium"
+                            >
+                                Выбрать все {allFilteredCount} поз.
+                            </button>
+                        )}
+
+                        <button
+                            onClick={clearSelection}
+                            className="p-1 -mr-2 text-slate-400 hover:text-white transition-colors"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

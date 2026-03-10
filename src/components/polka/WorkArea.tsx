@@ -207,51 +207,13 @@ export function WorkArea() {
           {isSearchActive ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
         </button>
 
-        {/* Segmented Action Group */}
-        {(refreshAction || hasSelection) && (
+        {/* General Action Group */}
+        {refreshAction && (
           <div className="flex items-center h-9 overflow-hidden rounded-md bg-secondary transition-all duration-300 ease-in-out border border-border/50 shrink-0 md:w-[130px] w-auto relative">
-            <AnimatePresence mode="wait" initial={false}>
-              {hasSelection ? (
-                <motion.div
-                  key="segmented"
-                  initial={{ opacity: 0, filter: 'blur(4px)' }}
-                  animate={{ opacity: 1, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, filter: 'blur(4px)' }}
-                  transition={{ duration: 0.15 }}
-                  className="flex items-center w-full h-full"
-                >
-                  <button onClick={selectAllFiltered} className="flex-1 h-full min-w-[36px] flex items-center justify-center hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors" title="Выбрать всё">
-                    <CheckSquare className="w-4 h-4" />
-                  </button>
-                  <div className="w-px h-5 bg-border/50 flex-shrink-0" />
-                  <button onClick={clearSelection} className="flex-1 h-full min-w-[36px] flex items-center justify-center hover:bg-red-500/10 text-red-600 dark:text-red-400 transition-colors" title="Сбросить выбор">
-                    <XSquare className="w-4 h-4" />
-                  </button>
-                  <div className="w-px h-5 bg-border/50 flex-shrink-0" />
-                  {refreshAction && (
-                    <button disabled={isBusy} onClick={refreshAction.onClick} className="flex-1 h-full min-w-[36px] flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 text-secondary-foreground transition-colors disabled:opacity-50" title={refreshAction.label}>
-                      <refreshAction.icon className={`w-4 h-4 ${isBusy ? 'animate-spin' : ''}`} />
-                    </button>
-                  )}
-                </motion.div>
-              ) : (
-                refreshAction && (
-                  <motion.div
-                    key="single"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="flex items-center w-full h-full absolute inset-0"
-                  >
-                    <button disabled={isBusy} onClick={refreshAction.onClick} className="w-full h-full flex items-center justify-center gap-2 hover:bg-secondary/80 text-secondary-foreground transition-colors disabled:opacity-50 px-3 md:px-0">
-                      <refreshAction.icon className={`w-4 h-4 flex-shrink-0 ${isBusy ? 'animate-spin' : ''}`} />
-                      <span className="hidden md:inline text-sm font-medium">{refreshAction.label}</span>
-                    </button>
-                  </motion.div>
-                )
-              )}
-            </AnimatePresence>
+            <button disabled={isBusy} onClick={refreshAction.onClick} className="w-full h-full flex items-center justify-center gap-2 hover:bg-secondary/80 text-secondary-foreground transition-colors disabled:opacity-50 px-3 md:px-0" title={refreshAction.label}>
+              <refreshAction.icon className={`w-4 h-4 flex-shrink-0 ${isBusy ? 'animate-spin' : ''}`} />
+              <span className="hidden md:inline text-sm font-medium">{refreshAction.label}</span>
+            </button>
           </div>
         )}
 
@@ -467,7 +429,7 @@ export function WorkArea() {
                           <Rows2 className="w-3 h-3 flex-shrink-0" />
                           <span className={cn("tabular-nums whitespace-nowrap", !(selectedIds && selectedIds.size > 0) && "font-medium")}>
                             {selectedIds && selectedIds.size > 0 ? (
-                              `Выбрано: ${selectedIds.size} из ${totalRows}`
+                              `${selectedIds.size} из ${totalRows}`
                             ) : (
                               totalRows >= 1000
                                 ? `${(totalRows / 1000).toFixed(1)}к`
@@ -478,7 +440,7 @@ export function WorkArea() {
                       </TooltipTrigger>
                       <TooltipContent side="top">
                         {selectedIds && selectedIds.size > 0 ? (
-                          <p>Выбрано строк: {selectedIds.size} из {totalRows.toLocaleString('ru-RU')}</p>
+                          <p>{selectedIds.size} из {totalRows.toLocaleString('ru-RU')}</p>
                         ) : (
                           <p>{totalRows.toLocaleString('ru-RU')} записей всего</p>
                         )}

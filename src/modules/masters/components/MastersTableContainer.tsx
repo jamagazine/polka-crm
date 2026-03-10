@@ -74,16 +74,18 @@ export const MastersTableContainer = React.memo(function MastersTableContainer({
     const isAllFilteredSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedIds.has(id));
 
     const handleHeaderCheckClick = useCallback(() => {
-        if (isAllFilteredSelected) {
-            clearSelection();
-        } else if (isAllVisibleSelected) {
-            setSelection(new Set(allFilteredIds));
+        if (isAllVisibleSelected) {
+            // Uncheck all visible items
+            const next = new Set(selectedIds);
+            visibleIds.forEach(id => next.delete(id));
+            setSelection(next);
         } else {
+            // Check all visible items
             const next = new Set(selectedIds);
             visibleIds.forEach(id => next.add(id));
             setSelection(next);
         }
-    }, [isAllFilteredSelected, isAllVisibleSelected, clearSelection, setSelection, allFilteredIds, selectedIds, visibleIds]);
+    }, [isAllVisibleSelected, setSelection, selectedIds, visibleIds]);
 
     // DND Handlers
     const handleDragStart = useCallback((e: React.DragEvent, colId: string) => {
@@ -172,6 +174,9 @@ export const MastersTableContainer = React.memo(function MastersTableContainer({
             toggleSelection={toggleSelection}
             isAllVisibleSelected={isAllVisibleSelected}
             isAllFilteredSelected={isAllFilteredSelected}
+            clearSelection={clearSelection}
+            selectAllFiltered={() => setSelection(new Set(allFilteredIds))}
+            allFilteredCount={allFilteredIds.length}
             handleHeaderCheckClick={handleHeaderCheckClick}
             highlightedIds={highlightedIds}
             clearHighlightedIds={clearHighlightedIds}
